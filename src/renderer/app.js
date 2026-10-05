@@ -3,6 +3,7 @@ const state = JSON.parse(localStorage.getItem(storeKey) || 'null') || {
   patients: [], sessions: [], payments: [], insurance: [], bills: []
 };
 let dialogMode = '';
+let calendarDate = new Date();
 
 const $ = (id) => document.getElementById(id);
 const money = (value) => `₪${Number(value || 0).toFixed(2)}`;
@@ -39,15 +40,39 @@ function renderDashboard() {
   const mix = day.byMethod;
   const max = Math.max(day.total, 1);
   $('paymentMix').innerHTML = Object.entries(mix).map(([method, amount]) => `<div><div class="row-card"><span>${method === 'debit' ? 'Debit card' : method[0].toUpperCase() + method.slice(1)}</span><strong>${money(amount)}</strong></div><div class="mix-bar"><span style="width:${Math.round(amount / max * 100)}%"></span></div></div>`).join('');
+  renderCalendar();
+  const upcoming = state.sessions.filter((session) => session.date >= today()).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
+  $('upcomingSessions').innerHTML = upcoming.map((session) => `<div class="row-card"><div><strong>${esc(patientName(session.patientId))}</strong><small>${esc(session.date)} · ${esc(session.service)}</small></div><span class="pill">${money(session.amount)}</span></div>`).join('') || '<p class="muted">No upcoming sessions.</p>';
+}
+
+function renderCalendar() {
+  const year = calendarDate.getFullYear();
+  const month = calendarDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const leadingDays = (firstDay.getDay() + 6) % 7;
+  const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(calendarDate);
+  $('calendarMonth').textContent = monthLabel;
+  const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const cells = weekdayLabels.map((label) => `<div class="calendar-weekday">${label}</div>`);
+  for (let index = 0; index < leadingDays; index += 1) cells.push('<div class="calendar-day is-empty"></div>');
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const sessions = state.sessions.filter((session) => session.date === date);
+    const classes = ['calendar-day'];
+    if (date === today()) classes.push('is-today');
+    cells.push(`<div class="${classes.join(' ')}"><span class="calendar-date">${day}</span>${sessions.slice(0, 3).map((session) => `<button type="button" class="calendar-event" data-session-id="${esc(session.id)}">${esc(patientName(session.patientId))}</button>`).join('')}${sessions.length > 3 ? `<small class="calendar-more">+${sessions.length - 3} more</small>` : ''}</div>`);
+  }
+  $('calendar').innerHTML = cells.join('');
 }
 
 function renderPatients() {
   const search = ($('patientSearch').value || '').toLowerCase();
   const patients = state.patients.filter((patient) => `${patient.name} ${patient.phone}`.toLowerCase().includes(search));
-  $('patientsTable').innerHTML = `<table><thead><tr><th>Patient</th><th>Phone</th><th>Sessions</th><th>Collected</th></tr></thead><tbody>${patients.map((patient) => {
+  $('patientsTable').innerHTML = `<table><thead><tr><th>File number</th><th>Patient</th><th>Phone</th><th>Sessions</th><th>Collected</th></tr></thead><tbody>${patients.map((patient) => {
     const sessions = state.sessions.filter((session) => session.patientId === patient.id);
     const collected = state.payments.filter((payment) => payment.patientId === patient.id).reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-    return `<tr><td><strong>${esc(patient.name)}</strong><br><small>${esc(patient.notes || '')}</small></td><td>${esc(patient.phone)}</td><td>${sessions.length}</td><td>${money(collected)}</td></tr>`;
+    return `<tr><td><span class="pill">${esc(patient.fileNumber || 'Not assigned')}</span></td><td><strong>${esc(patient.name)}</strong><br><small>${esc(patient.notes || '')}</small></td><td>${esc(patient.phone)}</td><td>${sessions.length}</td><td>${money(collected)}</td></tr>`;
   }).join('')}</tbody></table>` || '<p class="muted">No patients found.</p>';
 }
 
@@ -89,7 +114,7 @@ function sessionOptions(patientId = '') { return state.sessions.filter((s) => !p
 function openRecord(type) {
   dialogMode = type;
   const fields = {
-    patient: `<label>Name<input name="name" required></label><label>Phone<input name="phone"></label><label>Notes<textarea name="notes"></textarea></label>`,
+    patient: `<label>Name<input name="name" required></label><label>File number<input name="fileNumber" required placeholder="e.g. CL-000123"></label><label>Phone<input name="phone"></label><label>Notes<textarea name="notes"></textarea></label>`,
     session: `<label>Patient<select name="patientId" required>${patientOptions()}</select></label><label>Date<input name="date" type="date" value="${today()}" required></label><label>Service<input name="service" required></label><label>Session amount<input name="amount" type="number" min="0" step="0.01" required></label><label>Session note<textarea name="note"></textarea></label>`,
     payment: `<label>Patient<select name="patientId" required>${patientOptions()}</select></label><label>Session<select name="sessionId" required>${sessionOptions()}</select></label><label>Date<input name="date" type="date" value="${today()}" required></label><label>Amount<input name="amount" type="number" min="0" step="0.01" required></label><label>Method<select name="method"><option value="cash">Cash</option><option value="debit">Debit card</option><option value="insurance">Insurance</option></select></label><label>Insurance provider<select name="insuranceId"><option value="">Select provider</option>${state.insurance.map((i) => `<option value="${i.id}">${esc(i.name)}</option>`).join('')}</select></label><label>Status<select name="status"><option value="paid">Paid</option><option value="pending">Pending / claim submitted</option><option value="rejected">Rejected</option></select></label>`
   };
@@ -104,9 +129,31 @@ document.querySelectorAll('[data-page-link]').forEach((button) => button.addEven
 $('newPatient').addEventListener('click', () => openRecord('patient'));
 $('newSession').addEventListener('click', () => openRecord('session'));
 $('newPayment').addEventListener('click', () => openRecord('payment'));
+$('cancelRecord').addEventListener('click', () => { $('recordDialog').close('cancel'); dialogMode = ''; });
+$('calendarPrev').addEventListener('click', () => { calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1); renderCalendar(); });
+$('calendarNext').addEventListener('click', () => { calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1); renderCalendar(); });
+$('calendar').addEventListener('click', (event) => {
+  const eventButton = event.target.closest('[data-session-id]');
+  if (!eventButton) return;
+  document.querySelector('[data-page="sessions"]').click();
+});
 $('patientSearch').addEventListener('input', renderPatients);
 $('insuranceForm').addEventListener('submit', (event) => { event.preventDefault(); const name = $('insuranceName').value.trim(); if (!name) return; state.insurance.push({ id: id('ins'), name, contact: $('insuranceContact').value.trim() }); event.target.reset(); persist(); });
 $('generateReport').addEventListener('click', () => { const bill = { id: id('bill'), from: $('reportFrom').value, to: $('reportTo').value, generatedAt: new Date().toISOString(), totals: totals($('reportFrom').value, $('reportTo').value) }; state.bills.push(bill); persist(); alert(`Bill generated: ${bill.id}`); });
 $('exportData').addEventListener('click', () => { const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'}); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `rts-clinic-${today()}.json`; link.click(); URL.revokeObjectURL(link.href); });
-$('recordForm').addEventListener('submit', (event) => { event.preventDefault(); const data = Object.fromEntries(new FormData(event.target).entries()); if (dialogMode === 'patient') state.patients.push({id:id('patient'), ...data}); if (dialogMode === 'session') state.sessions.push({id:id('session'), ...data, amount:Number(data.amount)}); if (dialogMode === 'payment') state.payments.push({id:id('payment'), ...data, amount:Number(data.amount)}); $('recordDialog').close(); persist(); });
+$('recordForm').addEventListener('submit', (event) => {
+  event.preventDefault();
+  if (event.submitter?.value === 'cancel') {
+    $('recordDialog').close('cancel');
+    dialogMode = '';
+    return;
+  }
+  const data = Object.fromEntries(new FormData(event.target).entries());
+  if (dialogMode === 'patient') state.patients.push({id:id('patient'), ...data});
+  if (dialogMode === 'session') state.sessions.push({id:id('session'), ...data, amount:Number(data.amount)});
+  if (dialogMode === 'payment') state.payments.push({id:id('payment'), ...data, amount:Number(data.amount)});
+  $('recordDialog').close('saved');
+  dialogMode = '';
+  persist();
+});
 renderAll();

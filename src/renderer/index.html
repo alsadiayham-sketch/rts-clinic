@@ -42,7 +42,21 @@
         </div>
         <div class="grid-2">
           <div class="panel"><div class="panel-heading"><h3>Recent sessions</h3><button class="link-button" data-page-link="sessions">View all</button></div><div id="recentSessions"></div></div>
+          <div class="panel calendar-panel">
+            <div class="panel-heading">
+              <h3>Appointments calendar</h3>
+              <div class="calendar-controls">
+                <button id="calendarPrev" class="icon-button" type="button" aria-label="Previous month">‹</button>
+                <strong id="calendarMonth"></strong>
+                <button id="calendarNext" class="icon-button" type="button" aria-label="Next month">›</button>
+              </div>
+            </div>
+            <div id="calendar" class="calendar"></div>
+          </div>
+        </div>
+        <div class="grid-2 dashboard-secondary">
           <div class="panel"><div class="panel-heading"><h3>Payment mix today</h3></div><div id="paymentMix"></div></div>
+          <div class="panel"><div class="panel-heading"><h3>Upcoming sessions</h3></div><div id="upcomingSessions"></div></div>
         </div>
       </section>
 
@@ -102,7 +116,7 @@
     <form method="dialog" id="recordForm">
       <div class="dialog-heading"><h3 id="dialogTitle">Record</h3><button value="cancel" class="icon-button">×</button></div>
       <div id="dialogFields" class="form-grid"></div>
-      <div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button id="saveRecord" value="default" class="primary">Save</button></div>
+      <div class="dialog-actions"><button type="button" id="cancelRecord" class="secondary">Cancel</button><button id="saveRecord" value="default" class="primary">Save</button></div>
     </form>
   </dialog>
   <script src="app.js"></script>
