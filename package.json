@@ -1,0 +1,37 @@
+{
+  "name": "rts-clinic",
+  "version": "1.0.0",
+  "description": "RTS Clinic management system",
+  "main": "src/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "pack": "electron-builder --dir"
+  },
+  "author": "Royal Technology Solutions",
+  "license": "PROPRIETARY",
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.rts.clinic",
+    "productName": "RTS Clinic",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "RTS Clinic",
+      "artifactName": "RTS-Clinic-Setup.exe",
+      "include": "build/installer.nsh"
+    }
+  }
+}

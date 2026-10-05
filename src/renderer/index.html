@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RTS Clinic</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="login" class="login-screen">
+    <div class="login-card">
+      <div class="brand-mark">R</div>
+      <h1>RTS Clinic</h1>
+      <p>Clinic operations, patient sessions, and billing.</p>
+      <button id="enterApp" class="primary">Open workspace</button>
+    </div>
+  </div>
+
+  <div id="app" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">R</div><div><strong>RTS Clinic</strong><small>Royal Technology Solutions</small></div></div>
+      <nav id="nav">
+        <button class="nav-item active" data-page="dashboard">Dashboard</button>
+        <button class="nav-item" data-page="patients">Patients</button>
+        <button class="nav-item" data-page="sessions">Sessions</button>
+        <button class="nav-item" data-page="payments">Payments</button>
+        <button class="nav-item" data-page="insurance">Insurance</button>
+        <button class="nav-item" data-page="reports">Bills & reports</button>
+      </nav>
+      <div class="sidebar-footer">Admin workspace<br><span id="syncState">Local data</span></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar"><div><span class="eyebrow">RTS Clinic</span><h2 id="pageTitle">Dashboard</h2></div><button id="exportData" class="secondary">Export data</button></header>
+
+      <section class="page active" id="page-dashboard">
+        <div class="metric-grid">
+          <div class="metric"><span>Today collected</span><strong id="todayCollected">₪0.00</strong></div>
+          <div class="metric"><span>Sessions today</span><strong id="todaySessions">0</strong></div>
+          <div class="metric"><span>Patients</span><strong id="totalPatients">0</strong></div>
+          <div class="metric"><span>Insurance receivable</span><strong id="insuranceReceivable">₪0.00</strong></div>
+        </div>
+        <div class="grid-2">
+          <div class="panel"><div class="panel-heading"><h3>Recent sessions</h3><button class="link-button" data-page-link="sessions">View all</button></div><div id="recentSessions"></div></div>
+          <div class="panel"><div class="panel-heading"><h3>Payment mix today</h3></div><div id="paymentMix"></div></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-patients">
+        <div class="panel">
+          <div class="panel-heading"><h3>Patients</h3><button id="newPatient" class="primary">Add patient</button></div>
+          <input id="patientSearch" class="search" placeholder="Search patients by name or phone">
+          <div id="patientsTable" class="table-wrap"></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-sessions">
+        <div class="panel">
+          <div class="panel-heading"><h3>Sessions</h3><button id="newSession" class="primary">Add session</button></div>
+          <div id="sessionsTable" class="table-wrap"></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-payments">
+        <div class="panel">
+          <div class="panel-heading"><h3>Payments</h3><button id="newPayment" class="primary">Record payment</button></div>
+          <p class="muted">A session can have multiple payment rows. This supports cash + debit card + insurance combinations without losing the audit trail.</p>
+          <div id="paymentsTable" class="table-wrap"></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-insurance">
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-heading"><h3>Insurance providers</h3></div>
+            <form id="insuranceForm" class="form-grid">
+              <label>Name<input id="insuranceName" required></label>
+              <label>Claim contact<input id="insuranceContact"></label>
+              <button class="primary" type="submit">Add provider</button>
+            </form>
+            <div id="insuranceList"></div>
+          </div>
+          <div class="panel"><div class="panel-heading"><h3>Outstanding claims</h3></div><div id="claimsList"></div></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-reports">
+        <div class="panel">
+          <div class="panel-heading"><h3>Bill and revenue report</h3><button id="generateReport" class="primary">Generate bill</button></div>
+          <div class="form-grid report-filters">
+            <label>From<input id="reportFrom" type="date"></label>
+            <label>To<input id="reportTo" type="date"></label>
+          </div>
+          <div id="reportSummary"></div>
+          <div id="reportsTable" class="table-wrap"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="recordDialog">
+    <form method="dialog" id="recordForm">
+      <div class="dialog-heading"><h3 id="dialogTitle">Record</h3><button value="cancel" class="icon-button">×</button></div>
+      <div id="dialogFields" class="form-grid"></div>
+      <div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button id="saveRecord" value="default" class="primary">Save</button></div>
+    </form>
+  </dialog>
+  <script src="app.js"></script>
+</body>
+</html>
