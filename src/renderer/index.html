@@ -113,11 +113,15 @@
   </div>
 
   <dialog id="recordDialog">
-    <form method="dialog" id="recordForm">
-      <div class="dialog-heading"><h3 id="dialogTitle">Record</h3><button value="cancel" class="icon-button">×</button></div>
+    <form id="recordForm">
+      <div class="dialog-heading"><h3 id="dialogTitle">Record</h3><button id="closeRecord" type="button" class="icon-button" aria-label="Close">×</button></div>
       <div id="dialogFields" class="form-grid"></div>
       <div class="dialog-actions"><button type="button" id="cancelRecord" class="secondary">Cancel</button><button id="saveRecord" value="default" class="primary">Save</button></div>
     </form>
+  </dialog>
+  <dialog id="sessionDialog">
+    <div class="dialog-heading"><h3>Session details</h3><button id="closeSession" type="button" class="icon-button" aria-label="Close">×</button></div>
+    <div id="sessionDetails"></div>
   </dialog>
   <script src="app.js"></script>
 </body>
