@@ -63,7 +63,7 @@
       <section class="page" id="page-patients">
         <div class="panel">
           <div class="panel-heading"><h3>Patients</h3><button id="newPatient" class="primary">Add patient</button></div>
-          <input id="patientSearch" class="search" placeholder="Search patients by name or phone">
+          <input id="patientSearch" class="search" placeholder="Search patients by name, phone, file number, or national ID">
           <div id="patientsTable" class="table-wrap"></div>
         </div>
       </section>
@@ -122,6 +122,10 @@
   <dialog id="sessionDialog">
     <div class="dialog-heading"><h3>Session details</h3><button id="closeSession" type="button" class="icon-button" aria-label="Close">×</button></div>
     <div id="sessionDetails"></div>
+  </dialog>
+  <dialog id="patientDialog">
+    <div class="dialog-heading"><h2>Patient record</h2><button id="closePatient" type="button" class="icon-button" aria-label="Close">×</button></div>
+    <div id="patientDetails"></div>
   </dialog>
   <script src="app.js"></script>
 </body>
