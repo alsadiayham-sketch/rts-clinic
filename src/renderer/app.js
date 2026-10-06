@@ -38,6 +38,57 @@ const sessionLabel = (sessionId) => {
   return session ? `${session.date} ${session.time || ''} · ${patientName(session.patientId)}` : 'Unknown session';
 };
 
+function setupUpdater() {
+  const updater = window.rtsUpdater;
+  if (!updater) return;
+  const overlay = $('updateOverlay');
+  const nowButton = $('updateNow');
+  const laterButton = $('updateLater');
+
+  const fallback = (message) => {
+    $('updateStatus').textContent = message;
+    nowButton.disabled = false;
+    nowButton.textContent = 'Open download page';
+    nowButton.onclick = () => updater.openReleases();
+  };
+
+  updater.on('updater-available', (info) => {
+    $('updateVersion').textContent = info.version || '';
+    $('updateNotes').textContent = info.notes || 'This release includes improvements and fixes.';
+    $('updateMandatory').classList.toggle('hidden', !info.mandatory);
+    laterButton.classList.toggle('hidden', Boolean(info.mandatory));
+    $('updateProgressTrack').classList.add('hidden');
+    $('updateStatus').textContent = '';
+    nowButton.disabled = false;
+    nowButton.textContent = 'Download update';
+    nowButton.onclick = async () => {
+      nowButton.disabled = true;
+      nowButton.textContent = 'Starting download…';
+      const result = await updater.download().catch(() => null);
+      if (!result?.ok) fallback('Automatic update failed. Use the secure release download page.');
+    };
+    overlay.classList.remove('hidden');
+  });
+  updater.on('updater-progress', (progress) => {
+    const percent = Math.round(progress.percent || 0);
+    $('updateProgressTrack').classList.remove('hidden');
+    $('updateProgressBar').style.width = `${Math.max(0, Math.min(100, percent))}%`;
+    $('updateStatus').textContent = `Downloading ${percent}%`;
+  });
+  updater.on('updater-downloaded', () => {
+    $('updateProgressBar').style.width = '100%';
+    $('updateStatus').textContent = 'The verified update is ready to install.';
+    nowButton.disabled = false;
+    nowButton.textContent = 'Restart and install';
+    nowButton.onclick = () => updater.install();
+  });
+  updater.on('updater-error', () => {
+    if (!overlay.classList.contains('hidden')) fallback('Automatic update failed. Use the secure release download page.');
+  });
+  laterButton.addEventListener('click', () => overlay.classList.add('hidden'));
+  updater.check().catch(() => {});
+}
+
 function migrateState() {
   state.patients.forEach((patient) => {
     if (!patient.fullName) patient.fullName = patient.name || '';
@@ -267,6 +318,7 @@ function imageDataForStorage(file) {
 }
 
 migrateState();
+setupUpdater();
 $('enterApp').addEventListener('click', () => { $('login').classList.add('hidden'); $('app').classList.remove('hidden'); renderAll(); });
 $('nav').addEventListener('click', (event) => { const button = event.target.closest('[data-page]'); if (!button) return; document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('active', item === button)); document.querySelectorAll('.page').forEach((page) => page.classList.toggle('active', page.id === `page-${button.dataset.page}`)); $('pageTitle').textContent = button.textContent; });
 document.querySelectorAll('[data-page-link]').forEach((button) => button.addEventListener('click', () => document.querySelector('[data-page="sessions"]').click()));

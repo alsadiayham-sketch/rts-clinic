@@ -7,6 +7,22 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div id="updateOverlay" class="update-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="updateTitle">
+    <div class="update-card">
+      <div class="brand-mark">R</div>
+      <h2 id="updateTitle">RTS Clinic update available</h2>
+      <p>Version <strong id="updateVersion"></strong></p>
+      <p id="updateNotes" class="update-notes"></p>
+      <p id="updateMandatory" class="update-mandatory hidden">This update is required to continue.</p>
+      <div id="updateProgressTrack" class="update-progress-track hidden"><span id="updateProgressBar"></span></div>
+      <p id="updateStatus" class="muted"></p>
+      <div class="update-actions">
+        <button id="updateNow" class="primary">Download update</button>
+        <button id="updateLater" class="secondary">Later</button>
+      </div>
+    </div>
+  </div>
+
   <div id="login" class="login-screen">
     <div class="login-card">
       <div class="brand-mark">R</div>

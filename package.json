@@ -1,13 +1,15 @@
 {
   "name": "rts-clinic",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "RTS Clinic management system",
   "main": "src/main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --win",
-    "pack": "electron-builder --dir"
+    "pack": "electron-builder --dir",
+    "publish-update": "node scripts/publish-update.js",
+    "release": "npm run build && npm run publish-update"
   },
   "author": "Royal Technology Solutions",
   "license": "PROPRIETARY",
@@ -15,9 +17,20 @@
     "electron": "^28.3.3",
     "electron-builder": "^24.13.3"
   },
+  "dependencies": {
+    "electron-updater": "^6.1.7"
+  },
   "build": {
     "appId": "com.rts.clinic",
     "productName": "RTS Clinic",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "alsadiayham-sketch",
+        "repo": "rts-clinic",
+        "releaseType": "release"
+      }
+    ],
     "directories": {
       "output": "dist"
     },
@@ -30,7 +43,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "RTS Clinic",
-      "artifactName": "RTS-Clinic-Setup.exe",
+      "artifactName": "RTS-Clinic-Setup-${version}.${ext}",
       "include": "build/installer.nsh"
     }
   }
