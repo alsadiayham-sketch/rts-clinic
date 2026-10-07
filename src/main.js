@@ -52,6 +52,7 @@ function createWindow() {
     minWidth: 1100,
     minHeight: 720,
     title: 'RTS Clinic',
+    icon: path.join(__dirname, 'assets', 'icon.ico'),
     backgroundColor: '#f8f6f9',
     webPreferences: {
       contextIsolation: true,
