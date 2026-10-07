@@ -18,3 +18,7 @@ contextBridge.exposeInMainWorld('rtsUpdater', {
     ipcRenderer.on(channel, (_event, data) => callback(data || {}));
   }
 });
+
+contextBridge.exposeInMainWorld('rtsClinicAuth', {
+  login: (credentials) => ipcRenderer.invoke('clinic-login', credentials)
+});

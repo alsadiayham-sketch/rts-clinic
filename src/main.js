@@ -4,6 +4,7 @@ const { autoUpdater } = require('electron-updater');
 
 let mainWindow = null;
 const UPDATE_RELEASES_URL = 'https://github.com/alsadiayham-sketch/rts-clinic/releases/latest';
+const CLINIC_AUTH_URL = 'https://rts-royal.pages.dev/api/pos-login';
 
 app.setPath('userData', path.join(app.getPath('appData'), 'RTS Clinic'));
 
@@ -97,4 +98,38 @@ ipcMain.handle('updater-install', () => {
 ipcMain.handle('updater-open-releases', async () => {
   await shell.openExternal(UPDATE_RELEASES_URL);
   return { ok: true };
+});
+
+ipcMain.handle('clinic-login', async (_event, credentials = {}) => {
+  const username = typeof credentials.username === 'string' ? credentials.username.trim() : '';
+  const password = typeof credentials.password === 'string' ? credentials.password : '';
+  if (!username || !password) return { ok: false, message: 'Enter your username and password.' };
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  try {
+    const response = await fetch(CLINIC_AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storeId: 'rts-testing', username, password }),
+      signal: controller.signal
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.ok) {
+      return {
+        ok: false,
+        message: payload?.error?.message || 'Unable to sign in to RTS Clinic.'
+      };
+    }
+    return payload;
+  } catch (error) {
+    return {
+      ok: false,
+      message: error?.name === 'AbortError'
+        ? 'The clinic sign-in service timed out.'
+        : 'The clinic sign-in service is unavailable.'
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 });

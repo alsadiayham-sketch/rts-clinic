@@ -7,6 +7,7 @@ let dialogMode = '';
 let pendingPaymentSessionId = '';
 let editingPatientId = '';
 let calendarDate = new Date();
+let currentUser = null;
 
 const $ = (id) => document.getElementById(id);
 const money = (value) => `₪${Number(value || 0).toFixed(2)}`;
@@ -264,6 +265,10 @@ function patientForm(patient) {
 }
 
 function openRecord(type, sessionId = '') {
+  if (type === 'payment' && currentUser?.role !== 'admin') {
+    alert('Only clinic administrators can manage payments.');
+    return;
+  }
   if (type === 'payment' && !sessionId && !sessionOptions()) {
     alert('There are no closed sessions with an amount left to allocate.');
     return;
@@ -357,7 +362,38 @@ function imageDataForStorage(file) {
 
 migrateState();
 setupUpdater();
-$('enterApp').addEventListener('click', () => { $('login').classList.add('hidden'); $('app').classList.remove('hidden'); renderAll(); });
+$('loginForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const submit = $('loginSubmit');
+  const error = $('loginError');
+  const data = new FormData(event.target);
+  submit.disabled = true;
+  submit.textContent = 'Signing in…';
+  error.textContent = '';
+  try {
+    const result = await window.rtsClinicAuth.login({
+      username: data.get('username'),
+      password: data.get('password')
+    });
+    if (!result?.ok) {
+      error.textContent = result?.message || 'Unable to sign in.';
+      return;
+    }
+    currentUser = result.user;
+    $('signedInUser').textContent = `${result.user.name} · ${result.user.role === 'admin' ? 'Admin' : 'Staff'}`;
+    document.querySelectorAll('.admin-only').forEach((element) => {
+      element.classList.toggle('hidden', result.user.role !== 'admin');
+    });
+    $('login').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    renderAll();
+  } catch {
+    error.textContent = 'Unable to sign in to RTS Clinic.';
+  } finally {
+    submit.disabled = false;
+    submit.textContent = 'Sign in';
+  }
+});
 $('nav').addEventListener('click', (event) => { const button = event.target.closest('[data-page]'); if (!button) return; document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('active', item === button)); document.querySelectorAll('.page').forEach((page) => page.classList.toggle('active', page.id === `page-${button.dataset.page}`)); $('pageTitle').textContent = button.textContent; });
 document.querySelectorAll('[data-page-link]').forEach((button) => button.addEventListener('click', () => document.querySelector('[data-page="sessions"]').click()));
 $('newPatient').addEventListener('click', () => openRecord('patient'));
@@ -371,8 +407,8 @@ $('calendarPrev').addEventListener('click', () => { calendarDate = new Date(cale
 $('calendarNext').addEventListener('click', () => { calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1); renderCalendar(); });
 $('patientSearch').addEventListener('input', renderPatients);
 $('insuranceForm').addEventListener('submit', (event) => { event.preventDefault(); const name = $('insuranceName').value.trim(); if (!name) return; state.insurance.push({ id: id('ins'), name, contact: $('insuranceContact').value.trim() }); event.target.reset(); persist(); });
-$('generateReport').addEventListener('click', () => { const bill = { id: id('bill'), from: $('reportFrom').value, to: $('reportTo').value, generatedAt: new Date().toISOString(), totals: totals($('reportFrom').value, $('reportTo').value) }; state.bills.push(bill); persist(); alert(`Bill generated: ${bill.id}`); });
-$('exportData').addEventListener('click', () => { const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `rts-clinic-${today()}.json`; link.click(); URL.revokeObjectURL(link.href); });
+$('generateReport').addEventListener('click', () => { if (currentUser?.role !== 'admin') return; const bill = { id: id('bill'), from: $('reportFrom').value, to: $('reportTo').value, generatedAt: new Date().toISOString(), totals: totals($('reportFrom').value, $('reportTo').value) }; state.bills.push(bill); persist(); alert(`Bill generated: ${bill.id}`); });
+$('exportData').addEventListener('click', () => { if (currentUser?.role !== 'admin') return; const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `rts-clinic-${today()}.json`; link.click(); URL.revokeObjectURL(link.href); });
 $('recordForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(event.target).entries());
