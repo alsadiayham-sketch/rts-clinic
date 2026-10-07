@@ -1,4 +1,178 @@
 const storeKey = 'rts_clinic_workspace_v1';
+const languageKey = 'rts_clinic_language';
+let language = localStorage.getItem(languageKey) === 'ar' ? 'ar' : 'en';
+const translations = {
+  'RTS Clinic': 'عيادة RTS',
+  'Royal Technology Solutions': 'رويال للتقنية والحلول',
+  'Dashboard': 'لوحة التحكم',
+  'Patients': 'المرضى',
+  'Sessions': 'الجلسات',
+  'Payments': 'المدفوعات',
+  'Insurance': 'التأمين',
+  'Bills & reports': 'الفواتير والتقارير',
+  'Clinic user': 'مستخدم العيادة',
+  'Local data': 'بيانات محلية',
+  'Export data': 'تصدير البيانات',
+  'Sign out': 'تسجيل الخروج',
+  'Today collected': 'المحصّل اليوم',
+  'Sessions today': 'جلسات اليوم',
+  'Insurance receivable': 'مستحقات التأمين',
+  'Recent sessions': 'الجلسات الأخيرة',
+  'View all': 'عرض الكل',
+  'Appointments calendar': 'تقويم المواعيد',
+  'Payment mix today': 'مزيج مدفوعات اليوم',
+  'Upcoming sessions': 'الجلسات القادمة',
+  'Add patient': 'إضافة مريض',
+  'Search patients by name, phone, file number, or national ID': 'ابحث بالاسم أو الهاتف أو رقم الملف أو الهوية الوطنية',
+  'Add session': 'إضافة جلسة',
+  'Record payment': 'تسجيل دفعة',
+  'A session can have multiple payment rows. This supports cash + debit card + insurance combinations without losing the audit trail.': 'يمكن أن تحتوي الجلسة على عدة دفعات، بما في ذلك النقد والبطاقة والتأمين، مع الحفاظ على سجل التدقيق.',
+  'Insurance providers': 'مزودو التأمين',
+  'Name': 'الاسم',
+  'Claim contact': 'جهة اتصال المطالبة',
+  'Add provider': 'إضافة مزود',
+  'Outstanding claims': 'المطالبات المستحقة',
+  'Bill and revenue report': 'تقرير الفواتير والإيرادات',
+  'Generate bill': 'إنشاء فاتورة',
+  'From': 'من',
+  'To': 'إلى',
+  'Record': 'سجل',
+  'Save': 'حفظ',
+  'Cancel': 'إلغاء',
+  'Session details': 'تفاصيل الجلسة',
+  'Patient record': 'ملف المريض',
+  'Update available': 'يتوفر تحديث',
+  'Download update': 'تنزيل التحديث',
+  'Later': 'لاحقاً',
+  'This update is required to continue.': 'هذا التحديث مطلوب للمتابعة.',
+  'Sign in to your clinic workspace.': 'سجّل الدخول إلى مساحة عيادتك.',
+  'Clinic ID': 'معرّف العيادة',
+  'Username': 'اسم المستخدم',
+  'Password': 'كلمة المرور',
+  'Sign in': 'تسجيل الدخول',
+  'No sessions yet.': 'لا توجد جلسات بعد.',
+  'No upcoming sessions.': 'لا توجد جلسات قادمة.',
+  'Open': 'مفتوحة',
+  'Closed': 'مغلقة',
+  'Guest / unidentified': 'زائر / غير محدد',
+  'Unknown patient': 'مريض غير معروف',
+  'Not assigned': 'غير مخصص',
+  'Not recorded': 'غير مسجل',
+  'Sex not recorded': 'الجنس غير مسجل',
+  'View record': 'عرض الملف',
+  'No patients found.': 'لم يتم العثور على مرضى.',
+  'No payments recorded.': 'لا توجد دفعات مسجلة.',
+  'No providers configured.': 'لم تتم إضافة مزودين.',
+  'No outstanding insurance claims.': 'لا توجد مطالبات تأمين مستحقة.',
+  'Patient': 'المريض',
+  'Date / time': 'التاريخ والوقت',
+  'Service': 'الخدمة',
+  'Session value': 'قيمة الجلسة',
+  'Received': 'المستلم',
+  'To allocate': 'المتبقي للتوزيع',
+  'Insurance': 'التأمين',
+  'Amount': 'المبلغ',
+  'Status': 'الحالة',
+  'Cash': 'نقداً',
+  'Debit card': 'بطاقة خصم',
+  'Pending / claim submitted': 'معلّق / تم إرسال المطالبة',
+  'Paid': 'مدفوع',
+  'Rejected': 'مرفوض',
+  'English': 'الإنجليزية',
+  'Switch to English': 'التبديل إلى الإنجليزية',
+  'Switch to Arabic': 'التبديل إلى العربية',
+  'File number': 'رقم الملف',
+  'Phone': 'الهاتف',
+  'Collected': 'المحصّل',
+  'Actions': 'الإجراءات',
+  'Method': 'الطريقة',
+  'Balance': 'الرصيد',
+  'Claim pending': 'المطالبة معلّقة',
+  'No treatment recorded.': 'لم يتم تسجيل علاج.',
+  'No follow-up date recorded.': 'لم يتم تسجيل موعد متابعة.',
+  'No session note.': 'لا توجد ملاحظة للجلسة.',
+  'Payments': 'الدفعات',
+  'Open patient file': 'فتح ملف المريض',
+  'Received / pending claim / to allocate': 'المستلم / مطالبة معلّقة / المتبقي للتوزيع',
+  'Identity and contact': 'الهوية وبيانات الاتصال',
+  'Full legal name': 'الاسم القانوني الكامل',
+  'Date of birth': 'تاريخ الميلاد',
+  'Sex': 'الجنس',
+  'Female': 'أنثى',
+  'Male': 'ذكر',
+  'Intersex': 'ثنائي الجنس',
+  'Prefer not to say': 'أفضل عدم الإفصاح',
+  'Address': 'العنوان',
+  'Emergency contact': 'جهة اتصال للطوارئ',
+  'Emergency phone': 'هاتف الطوارئ',
+  'Profile photo': 'الصورة الشخصية',
+  'Optional. Stored locally as a small profile image.': 'اختياري. تحفظ محلياً كصورة شخصية صغيرة.',
+  'Critical clinical alerts': 'تنبيهات سريرية مهمة',
+  'Select anything a doctor or staff member must see before treatment.': 'حدد أي معلومات يجب أن يراها الطبيب أو الموظف قبل العلاج.',
+  'Critical alert note': 'ملاحظة تنبيه مهمة',
+  'Medical record': 'السجل الطبي',
+  'Allergies': 'الحساسيات',
+  'Current conditions': 'الحالات الحالية',
+  'Medications': 'الأدوية',
+  'Clinical notes': 'ملاحظات سريرية',
+  'Administrative notes': 'ملاحظات إدارية',
+  'Treatment / procedure': 'العلاج / الإجراء',
+  'What was done during this visit?': 'ما الذي تم خلال هذه الزيارة؟',
+  'Session note': 'ملاحظة الجلسة',
+  'Follow-up date': 'تاريخ المتابعة',
+  'Select closed session': 'اختر جلسة مغلقة',
+  'Insurance provider': 'مزود التأمين',
+  'Select provider': 'اختر المزود',
+  'Pending / claim submitted': 'معلّق / تم إرسال المطالبة',
+  'Only clinic administrators can manage payments.': 'يمكن لمديري العيادة فقط إدارة المدفوعات.',
+  'There are no closed sessions with an amount left to allocate.': 'لا توجد جلسات مغلقة بمبلغ متبقٍ للتوزيع.',
+  'Payment must belong to a closed session and cannot exceed the amount still to allocate.': 'يجب أن ترتبط الدفعة بجلسة مغلقة وألا تتجاوز المبلغ المتبقي للتوزيع.',
+  'Select an insurance provider for insurance payments.': 'اختر مزود تأمين لدفعات التأمين.',
+  'Cash and debit payments must be recorded as paid. Use an insurance payment for a submitted claim.': 'يجب تسجيل الدفعات النقدية ودفعات البطاقة كمدفوعة. استخدم دفعة تأمين للمطالبة المرسلة.',
+  'No critical alerts recorded': 'لم يتم تسجيل تنبيهات مهمة',
+  'Review before treatment': 'راجع قبل العلاج',
+  'Treatment and follow-up': 'العلاج والمتابعة',
+  'Final session amount': 'المبلغ النهائي للجلسة',
+  'Closing note': 'ملاحظة الإغلاق',
+  'Close session': 'إغلاق الجلسة'
+  ,
+  'Mon': 'الإثنين',
+  'Tue': 'الثلاثاء',
+  'Wed': 'الأربعاء',
+  'Thu': 'الخميس',
+  'Fri': 'الجمعة',
+  'Sat': 'السبت',
+  'Sun': 'الأحد'
+};
+const reverseTranslations = Object.fromEntries(Object.entries(translations).map(([english, arabic]) => [arabic, english]));
+const tr = (value) => language === 'ar' ? (translations[value] || value) : (reverseTranslations[value] || value);
+function applyLanguage() {
+  document.documentElement.lang = language;
+  document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+  document.querySelectorAll('*').forEach((element) => {
+    element.childNodes.forEach((node) => {
+      if (node.nodeType !== Node.TEXT_NODE) return;
+      const leading = node.textContent.match(/^\s*/)?.[0] || '';
+      const trailing = node.textContent.match(/\s*$/)?.[0] || '';
+      const value = node.textContent.trim();
+      if (value) node.textContent = `${leading}${tr(value)}${trailing}`;
+    });
+  });
+  document.querySelectorAll('[placeholder],[aria-label]').forEach((element) => {
+    if (element.placeholder) element.placeholder = tr(element.placeholder);
+    if (element.getAttribute('aria-label')) element.setAttribute('aria-label', tr(element.getAttribute('aria-label')));
+  });
+  document.querySelectorAll('.language-toggle').forEach((button) => {
+    button.textContent = language === 'ar' ? 'English' : 'العربية';
+    button.setAttribute('aria-label', language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية');
+  });
+  document.title = language === 'ar' ? 'عيادة RTS' : 'RTS Clinic';
+}
+function toggleLanguage() {
+  language = language === 'ar' ? 'en' : 'ar';
+  localStorage.setItem(languageKey, language);
+  renderAll();
+}
 const state = JSON.parse(localStorage.getItem(storeKey) || 'null') || {
   patients: [], sessions: [], payments: [], insurance: [], bills: []
 };
@@ -152,7 +326,7 @@ function renderDashboard() {
   $('insuranceReceivable').textContent = money(state.payments.filter((payment) => payment.method === 'insurance' && payment.status === 'pending').reduce((sum, payment) => sum + Number(payment.amount || 0), 0));
   $('recentSessions').innerHTML = state.sessions.slice().reverse().slice(0, 6).map(sessionRow).join('') || '<p class="muted">No sessions yet.</p>';
   const max = Math.max(day.total, 1);
-  $('paymentMix').innerHTML = Object.entries(day.byMethod).map(([method, amount]) => `<div><div class="row-card"><span>${method === 'debit' ? 'Debit card' : method[0].toUpperCase() + method.slice(1)}</span><strong>${money(amount)}</strong></div><div class="mix-bar"><span style="width:${Math.round(amount / max * 100)}%"></span></div></div>`).join('');
+  $('paymentMix').innerHTML = Object.entries(day.byMethod).map(([method, amount]) => `<div><div class="row-card"><span>${tr(method === 'debit' ? 'Debit card' : method[0].toUpperCase() + method.slice(1))}</span><strong>${money(amount)}</strong></div><div class="mix-bar"><span style="width:${Math.round(amount / max * 100)}%"></span></div></div>`).join('');
   renderCalendar();
   const upcoming = state.sessions.filter((session) => session.date >= today()).sort((a, b) => `${a.date} ${a.time || ''}`.localeCompare(`${b.date} ${b.time || ''}`)).slice(0, 5);
   $('upcomingSessions').innerHTML = upcoming.map(sessionRow).join('') || '<p class="muted">No upcoming sessions.</p>';
@@ -169,8 +343,8 @@ function renderCalendar() {
   const firstDay = new Date(year, month, 1);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const leadingDays = (firstDay.getDay() + 6) % 7;
-  $('calendarMonth').textContent = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(calendarDate);
-  const cells = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((label) => `<div class="calendar-weekday">${label}</div>`);
+  $('calendarMonth').textContent = new Intl.DateTimeFormat(language === 'ar' ? 'ar' : 'en', { month: 'long', year: 'numeric' }).format(calendarDate);
+  const cells = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((label) => `<div class="calendar-weekday">${tr(label)}</div>`);
   for (let index = 0; index < leadingDays; index += 1) cells.push('<div class="calendar-day is-empty"></div>');
   for (let day = 1; day <= daysInMonth; day += 1) {
     const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -198,7 +372,7 @@ function renderSessions() {
   const rows = state.sessions.slice().reverse().map((session) => {
     const collected = sessionCollected(session.id);
     const pendingClaim = sessionPendingClaims(session.id);
-    return `<tr class="clickable-row" data-session-id="${esc(session.id)}"><td>${esc(session.date)}<br><small>${esc(session.time || '')}</small></td><td>${esc(patientName(session.patientId))}</td><td>${esc(session.service)}</td><td>${session.status === 'closed' ? money(session.amount) : '<span class="pill">Open</span>'}</td><td>${money(collected)}${pendingClaim ? `<br><small>Claim pending: ${money(pendingClaim)}</small>` : ''}</td><td>${session.status === 'closed' ? money(Number(session.amount) - collected - pendingClaim) : '—'}</td></tr>`;
+    return `<tr class="clickable-row" data-session-id="${esc(session.id)}"><td>${esc(session.date)}<br><small>${esc(session.time || '')}</small></td><td>${esc(patientName(session.patientId))}</td><td>${esc(session.service)}</td><td>${session.status === 'closed' ? money(session.amount) : `<span class="pill">${tr('Open')}</span>`}</td><td>${money(collected)}${pendingClaim ? `<br><small>${tr('Claim pending')}: ${money(pendingClaim)}</small>` : ''}</td><td>${session.status === 'closed' ? money(Number(session.amount) - collected - pendingClaim) : '—'}</td></tr>`;
   }).join('');
   $('sessionsTable').innerHTML = rows ? `<table><thead><tr><th>Date / time</th><th>Patient</th><th>Service</th><th>Session value</th><th>Received</th><th>To allocate</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="muted">No sessions yet.</p>';
 }
@@ -234,6 +408,7 @@ function renderAll() {
   renderPayments();
   renderInsurance();
   renderReports();
+  applyLanguage();
 }
 
 function patientOptions() {
@@ -285,6 +460,7 @@ function openRecord(type, sessionId = '') {
   $('dialogTitle').textContent = type === 'patient' ? (patient ? 'Edit patient record' : 'Add patient') : type === 'session' ? 'Add session' : 'Record payment';
   $('dialogFields').innerHTML = fields[type];
   if (type === 'payment' && sessionId) $('dialogFields').querySelector('[name="sessionId"]').value = sessionId;
+  applyLanguage();
   $('recordDialog').showModal();
 }
 
@@ -296,6 +472,7 @@ function openSessionDetails(sessionId) {
   const pendingClaim = sessionPendingClaims(session.id);
   const remaining = session.status === 'closed' ? Number(session.amount) - sessionCommitted(session.id) : 0;
   $('sessionDetails').innerHTML = `<div class="detail-grid"><div><span class="muted">Patient</span><strong>${esc(patientName(session.patientId))}</strong><button type="button" class="link-button" data-patient-id="${esc(session.patientId)}">Open patient file</button></div><div><span class="muted">Date & time</span><strong>${esc(session.date)} ${esc(session.time || '')}</strong></div><div><span class="muted">Service</span><strong>${esc(session.service)}</strong></div><div><span class="muted">Status</span><strong>${session.status === 'closed' ? 'Closed' : 'Open'}</strong></div></div><section class="session-clinical-summary"><h4>Treatment and follow-up</h4><p><strong>${esc(session.treatment || 'No treatment recorded.')}</strong></p><p class="muted">${session.followUp ? `Follow-up: ${esc(session.followUp)}` : 'No follow-up date recorded.'}</p><p>${esc(session.note || 'No session note.')}</p></section><h4>Payments</h4>${payments.map((payment) => `<div class="row-card"><span>${esc(payment.method)} · ${esc(payment.status || 'paid')}</span><strong>${money(payment.amount)}</strong></div>`).join('') || '<p class="muted">No payments recorded.</p>'}${session.status === 'closed' ? `<div class="detail-total"><span>Received / pending claim / to allocate</span><strong>${money(collected)} / ${money(pendingClaim)} / ${money(remaining)}</strong></div>${remaining > 0.005 ? `<div class="dialog-actions"><button type="button" class="primary" data-record-payment="${esc(session.id)}">Record payment</button></div>` : ''}` : `<form id="closeSessionForm" class="form-grid"><label>Final session amount<input name="amount" type="number" min="0.01" step="0.01" required></label><label>Closing note<textarea name="closingNote"></textarea></label><div class="dialog-actions"><button class="primary" type="submit">Close session</button></div></form>`}`;
+  applyLanguage();
   $('sessionDialog').showModal();
   $('closeSessionForm')?.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -332,6 +509,7 @@ function openPatientDetails(patientId) {
     ? `<section class="critical-alert-box"><div class="critical-alert-heading"><span class="critical-icon" aria-hidden="true">!</span><div><strong>Critical clinical alerts</strong><small>Review before treatment</small></div></div><div class="critical-tags">${criticalAlerts.map((alert) => `<span>${esc(criticalLabels[alert] || alert)}</span>`).join('')}</div>${patient.criticalNote ? `<p>${esc(patient.criticalNote)}</p>` : ''}</section>`
     : `<section class="critical-alert-box critical-alert-box-empty"><strong>No critical alerts recorded</strong><span>Confirm this before treatment if the patient is new.</span></section>`;
   $('patientDetails').innerHTML = `<div class="patient-record-heading">${patientAvatar(patient)}<div><h3>${esc(patientName(patient.id))}</h3><p class="muted">File ${esc(patient.fileNumber || 'not assigned')}${age ? ` · ${age} years old` : ''}</p></div></div>${criticalBox}<div class="detail-grid"><div><span class="muted">Date of birth</span><strong>${recordValue(patient.dateOfBirth)}</strong></div><div><span class="muted">Sex</span><strong>${recordValue(patient.sex)}</strong></div><div><span class="muted">Phone</span><strong>${recordValue(patient.phone)}</strong></div><div><span class="muted">National ID</span><strong>${recordValue(patient.nationalId)}</strong></div><div><span class="muted">Emergency contact</span><strong>${recordValue(patient.emergencyContact)}${patient.emergencyPhone ? ` · ${esc(patient.emergencyPhone)}` : ''}</strong></div><div><span class="muted">Address</span><strong>${recordValue(patient.address)}</strong></div></div><section class="medical-record"><h4>Medical record</h4><div class="detail-grid"><div><span class="muted">Allergies</span><strong>${recordValue(patient.allergies)}</strong></div><div><span class="muted">Conditions</span><strong>${recordValue(patient.conditions)}</strong></div><div><span class="muted">Medications</span><strong>${recordValue(patient.medications)}</strong></div><div><span class="muted">Clinical notes</span><strong>${recordValue(patient.medicalNotes)}</strong></div></div></section><section class="care-history"><div class="history-heading"><h4>Previous sessions and treatments</h4><span class="pill">${sessions.length} visit${sessions.length === 1 ? '' : 's'}</span></div>${sessions.map((session) => `<button type="button" class="history-entry" data-session-id="${esc(session.id)}"><div><strong>${esc(session.date)} ${esc(session.time || '')} · ${esc(session.service)}</strong><small>${esc(session.treatment || session.note || session.closingNote || 'No treatment note.')}${session.followUp ? ` · Follow-up ${esc(session.followUp)}` : ''}</small></div><span class="pill">${esc(session.status)}</span></button>`).join('') || '<p class="muted">No sessions recorded for this patient.</p>'}</section><div class="dialog-actions"><button type="button" class="secondary" data-edit-patient="${esc(patient.id)}">Edit patient</button></div>`;
+  applyLanguage();
   $('patientDialog').showModal();
 }
 
@@ -368,7 +546,7 @@ $('loginForm').addEventListener('submit', async (event) => {
   const error = $('loginError');
   const data = new FormData(event.target);
   submit.disabled = true;
-  submit.textContent = 'Signing in…';
+  submit.textContent = language === 'ar' ? 'جارٍ تسجيل الدخول…' : 'Signing in…';
   error.textContent = '';
   try {
     const result = await window.rtsClinicAuth.login({
@@ -377,7 +555,7 @@ $('loginForm').addEventListener('submit', async (event) => {
       password: data.get('password')
     });
     if (!result?.ok) {
-      error.textContent = result?.message || 'Unable to sign in.';
+      error.textContent = result?.message || tr('Unable to sign in.');
       return;
     }
     currentUser = result.user;
@@ -389,10 +567,10 @@ $('loginForm').addEventListener('submit', async (event) => {
     $('app').classList.remove('hidden');
     renderAll();
   } catch {
-    error.textContent = 'Unable to sign in to RTS Clinic.';
+    error.textContent = tr('Unable to sign in to RTS Clinic.');
   } finally {
     submit.disabled = false;
-    submit.textContent = 'Sign in';
+    submit.textContent = tr('Sign in');
   }
 });
 $('nav').addEventListener('click', (event) => { const button = event.target.closest('[data-page]'); if (!button) return; document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('active', item === button)); document.querySelectorAll('.page').forEach((page) => page.classList.toggle('active', page.id === `page-${button.dataset.page}`)); $('pageTitle').textContent = button.textContent; });
@@ -401,12 +579,12 @@ $('newPatient').addEventListener('click', () => openRecord('patient'));
 $('newSession').addEventListener('click', () => openRecord('session'));
 $('newPayment').addEventListener('click', () => openRecord('payment'));
 $('signOut').addEventListener('click', () => {
-  if (!window.confirm('Sign out of this clinic workspace?')) return;
+  if (!window.confirm(language === 'ar' ? 'هل تريد تسجيل الخروج من مساحة العيادة؟' : 'Sign out of this clinic workspace?')) return;
   currentUser = null;
   document.querySelectorAll('.admin-only').forEach((element) => element.classList.add('hidden'));
   document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.page === 'dashboard'));
   document.querySelectorAll('.page').forEach((page) => page.classList.toggle('active', page.id === 'page-dashboard'));
-  $('pageTitle').textContent = 'Dashboard';
+  $('pageTitle').textContent = tr('Dashboard');
   $('loginForm').reset();
   $('loginError').textContent = '';
   $('login').classList.remove('hidden');
@@ -417,6 +595,8 @@ $('closeRecord').addEventListener('click', () => { $('recordDialog').close('canc
 $('cancelRecord').addEventListener('click', () => { $('recordDialog').close('cancel'); dialogMode = ''; editingPatientId = ''; });
 $('closeSession').addEventListener('click', () => $('sessionDialog').close('cancel'));
 $('closePatient').addEventListener('click', () => $('patientDialog').close('cancel'));
+$('languageToggle').addEventListener('click', toggleLanguage);
+$('languageToggleLogin').addEventListener('click', toggleLanguage);
 $('calendarPrev').addEventListener('click', () => { calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1); renderCalendar(); });
 $('calendarNext').addEventListener('click', () => { calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1); renderCalendar(); });
 $('patientSearch').addEventListener('input', renderPatients);
@@ -477,4 +657,5 @@ document.addEventListener('click', (event) => {
   const editPatientTarget = event.target.closest('[data-edit-patient]');
   if (editPatientTarget) { $('patientDialog').close('cancel'); openRecord('patient', editPatientTarget.dataset.editPatient); }
 });
+applyLanguage();
 renderAll();
