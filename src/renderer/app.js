@@ -372,6 +372,7 @@ $('loginForm').addEventListener('submit', async (event) => {
   error.textContent = '';
   try {
     const result = await window.rtsClinicAuth.login({
+      storeId: data.get('storeId'),
       username: data.get('username'),
       password: data.get('password')
     });
@@ -380,7 +381,7 @@ $('loginForm').addEventListener('submit', async (event) => {
       return;
     }
     currentUser = result.user;
-    $('signedInUser').textContent = `${result.user.name} · ${result.user.role === 'admin' ? 'Admin' : 'Staff'}`;
+    $('signedInUser').textContent = `${result.store?.name || data.get('storeId')} · ${result.user.name} · ${result.user.role === 'admin' ? 'Admin' : 'Staff'}`;
     document.querySelectorAll('.admin-only').forEach((element) => {
       element.classList.toggle('hidden', result.user.role !== 'admin');
     });

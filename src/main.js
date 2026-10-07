@@ -101,9 +101,10 @@ ipcMain.handle('updater-open-releases', async () => {
 });
 
 ipcMain.handle('clinic-login', async (_event, credentials = {}) => {
+  const storeId = typeof credentials.storeId === 'string' ? credentials.storeId.trim().toLowerCase() : '';
   const username = typeof credentials.username === 'string' ? credentials.username.trim() : '';
   const password = typeof credentials.password === 'string' ? credentials.password : '';
-  if (!username || !password) return { ok: false, message: 'Enter your username and password.' };
+  if (!storeId || !username || !password) return { ok: false, message: 'Enter your clinic ID, username, and password.' };
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
@@ -111,7 +112,7 @@ ipcMain.handle('clinic-login', async (_event, credentials = {}) => {
     const response = await fetch(CLINIC_AUTH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ storeId: 'rts-testing', username, password }),
+      body: JSON.stringify({ storeId, username, password }),
       signal: controller.signal
     });
     const payload = await response.json().catch(() => ({}));

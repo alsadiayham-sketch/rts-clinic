@@ -27,8 +27,9 @@
     <div class="login-card">
       <div class="brand-mark">R</div>
       <h1>RTS Clinic</h1>
-      <p>Sign in to the RTS Testing clinic workspace.</p>
+      <p>Sign in to your clinic workspace.</p>
       <form id="loginForm" class="login-form">
+        <label for="loginStoreId">Clinic ID<input id="loginStoreId" name="storeId" autocomplete="organization" required></label>
         <label for="loginUsername">Username<input id="loginUsername" name="username" autocomplete="username" required></label>
         <label for="loginPassword">Password<input id="loginPassword" name="password" type="password" autocomplete="current-password" required></label>
         <p id="loginError" class="login-error" role="alert"></p>
