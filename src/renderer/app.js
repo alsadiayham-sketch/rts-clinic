@@ -400,6 +400,19 @@ document.querySelectorAll('[data-page-link]').forEach((button) => button.addEven
 $('newPatient').addEventListener('click', () => openRecord('patient'));
 $('newSession').addEventListener('click', () => openRecord('session'));
 $('newPayment').addEventListener('click', () => openRecord('payment'));
+$('signOut').addEventListener('click', () => {
+  if (!window.confirm('Sign out of this clinic workspace?')) return;
+  currentUser = null;
+  document.querySelectorAll('.admin-only').forEach((element) => element.classList.add('hidden'));
+  document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.page === 'dashboard'));
+  document.querySelectorAll('.page').forEach((page) => page.classList.toggle('active', page.id === 'page-dashboard'));
+  $('pageTitle').textContent = 'Dashboard';
+  $('loginForm').reset();
+  $('loginError').textContent = '';
+  $('login').classList.remove('hidden');
+  $('app').classList.add('hidden');
+  $('loginStoreId').focus();
+});
 $('closeRecord').addEventListener('click', () => { $('recordDialog').close('cancel'); dialogMode = ''; editingPatientId = ''; });
 $('cancelRecord').addEventListener('click', () => { $('recordDialog').close('cancel'); dialogMode = ''; editingPatientId = ''; });
 $('closeSession').addEventListener('click', () => $('sessionDialog').close('cancel'));
