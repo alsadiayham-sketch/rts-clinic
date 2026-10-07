@@ -23,6 +23,6 @@ Run `npm run release` to build and publish an update. Publishing prompts for opt
 
 Installed clients read the GitHub release feed, verify the installer with the SHA-512 in `latest.yml`, and use blockmaps for smaller differential downloads when the previous release also includes its blockmap.
 
-The workspace supports patients, sessions, notes, payment rows, mixed payment methods, configurable insurance providers, and period-based bill reports. Data is local to the desktop profile in this initial standalone release.
+The workspace supports patients, sessions, notes, payment rows, mixed payment methods, configurable insurance providers, period-based bill reports, and patient/session medical-file attachments. Data is stored under the desktop app profile in a separate authenticated clinic namespace; attachment contents are kept as files rather than in browser storage.
 
 The interface supports English and Arabic. Use the language switch on the sign-in screen or in the top bar; Arabic automatically enables right-to-left layout and the preference is remembered on the device.

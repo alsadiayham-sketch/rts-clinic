@@ -1,4 +1,4 @@
-const storeKey = 'rts_clinic_workspace_v1';
+const legacyStoreKey = 'rts_clinic_workspace_v1';
 const languageKey = 'rts_clinic_language';
 let language = localStorage.getItem(languageKey) === 'ar' ? 'ar' : 'en';
 const translations = {
@@ -60,6 +60,7 @@ const translations = {
   'Not recorded': 'غير مسجل',
   'Sex not recorded': 'الجنس غير مسجل',
   'View record': 'عرض الملف',
+  'View details': 'عرض التفاصيل',
   'No patients found.': 'لم يتم العثور على مرضى.',
   'No payments recorded.': 'لا توجد دفعات مسجلة.',
   'No providers configured.': 'لم تتم إضافة مزودين.',
@@ -105,8 +106,6 @@ const translations = {
   'Address': 'العنوان',
   'Emergency contact': 'جهة اتصال للطوارئ',
   'Emergency phone': 'هاتف الطوارئ',
-  'Profile photo': 'الصورة الشخصية',
-  'Optional. Stored locally as a small profile image.': 'اختياري. تحفظ محلياً كصورة شخصية صغيرة.',
   'Critical clinical alerts': 'تنبيهات سريرية مهمة',
   'Select anything a doctor or staff member must see before treatment.': 'حدد أي معلومات يجب أن يراها الطبيب أو الموظف قبل العلاج.',
   'Critical alert note': 'ملاحظة تنبيه مهمة',
@@ -134,8 +133,134 @@ const translations = {
   'Treatment and follow-up': 'العلاج والمتابعة',
   'Final session amount': 'المبلغ النهائي للجلسة',
   'Closing note': 'ملاحظة الإغلاق',
-  'Close session': 'إغلاق الجلسة'
-  ,
+  'Close session': 'إغلاق الجلسة',
+  'Saved to clinic workspace': 'تم الحفظ في مساحة العيادة',
+  'Unable to save changes.': 'تعذر حفظ التغييرات.',
+  'Unable to load this clinic workspace.': 'تعذر تحميل مساحة هذه العيادة.',
+  'Legacy clinic data was moved into this clinic workspace.': 'تم نقل بيانات العيادة القديمة إلى مساحة هذه العيادة.',
+  'Legacy clinic data was removed without importing it.': 'تمت إزالة بيانات العيادة القديمة دون استيرادها.',
+  'Legacy data was not imported because this clinic already has data. The unscoped copy was removed.': 'لم يتم استيراد البيانات القديمة لأن هذه العيادة تحتوي على بيانات. تمت إزالة النسخة غير المرتبطة بعيادة.',
+  'Medical files': 'الملفات الطبية',
+  'Add file': 'إضافة ملف',
+  'Download': 'تنزيل',
+  'Delete': 'حذف',
+  'No medical files uploaded.': 'لم يتم رفع ملفات طبية.',
+  'PDF, JPG, PNG, or WebP. Maximum 10 MB.': 'PDF أو JPG أو PNG أو WebP. الحد الأقصى 10 ميغابايت.',
+  'Uploading file…': 'جارٍ رفع الملف…',
+  'Loading…': 'جارٍ التحميل…',
+  'Unable to load medical files.': 'تعذر تحميل الملفات الطبية.',
+  'Unable to upload this medical file.': 'تعذر رفع هذا الملف الطبي.',
+  'Unable to download this medical file.': 'تعذر تنزيل هذا الملف الطبي.',
+  'Unable to delete this medical file.': 'تعذر حذف هذا الملف الطبي.',
+  'Delete this medical file permanently?': 'هل تريد حذف هذا الملف الطبي نهائياً؟',
+  'Only clinic administrators can delete medical files.': 'يمكن لمديري العيادة فقط حذف الملفات الطبية.',
+  'Only clinic administrators can manage insurance providers.': 'يمكن لمديري العيادة فقط إدارة مزودي التأمين.',
+  'Only clinic administrators can generate bills.': 'يمكن لمديري العيادة فقط إنشاء الفواتير.',
+  'This operation requires a clinic administrator.': 'تتطلب هذه العملية مدير عيادة.',
+  'Your clinic session has expired. Sign in again.': 'انتهت جلسة العيادة. سجّل الدخول مرة أخرى.',
+  'Select a patient that belongs to this clinic.': 'اختر مريضاً تابعاً لهذه العيادة.',
+  'The requested medical record does not belong to this clinic.': 'السجل الطبي المطلوب لا يتبع هذه العيادة.',
+  'The medical file no longer exists.': 'الملف الطبي لم يعد موجوداً.',
+  'Only PDF, JPG, PNG, and WebP files are allowed.': 'يُسمح فقط بملفات PDF وJPG وPNG وWebP.',
+  'Medical files must be smaller than 10 MB.': 'يجب أن يكون حجم الملف الطبي أقل من 10 ميغابايت.',
+  'The selected file content does not match its file type.': 'محتوى الملف المحدد لا يطابق نوعه.',
+  'Cash and debit payments must be recorded as paid.': 'يجب تسجيل الدفعات النقدية ودفعات البطاقة كمدفوعة.',
+  'Enter an insurance provider name.': 'أدخل اسم مزود التأمين.',
+  'Select a valid report date range.': 'اختر نطاق تاريخ صالحاً للتقرير.',
+  'Bill generated successfully.': 'تم إنشاء الفاتورة بنجاح.',
+  'Data exported successfully.': 'تم تصدير البيانات بنجاح.',
+  'This session cannot be closed.': 'لا يمكن إغلاق هذه الجلسة.',
+  'Enter a valid final session amount.': 'أدخل مبلغاً نهائياً صالحاً للجلسة.',
+  'Patient name and file number are required.': 'اسم المريض ورقم الملف مطلوبان.',
+  'Session date, time, patient, and service are required.': 'تاريخ الجلسة ووقتها والمريض والخدمة مطلوبة.',
+  'Diabetes': 'السكري',
+  'High blood pressure': 'ارتفاع ضغط الدم',
+  'Heart disease': 'أمراض القلب',
+  'Blood thinners': 'مميعات الدم',
+  'Immunosuppressed': 'ضعف المناعة',
+  'Pregnancy': 'الحمل',
+  'Fall risk': 'خطر السقوط',
+  'Infection-control alert': 'تنبيه مكافحة العدوى',
+  'Pacemaker / implanted device': 'منظم ضربات القلب / جهاز مزروع',
+  'Seizure history': 'تاريخ نوبات الصرع',
+  'Mobility assistance': 'مساعدة على الحركة',
+  'Confirm this before treatment if the patient is new.': 'أكد ذلك قبل العلاج إذا كان المريض جديداً.',
+  'Previous sessions and treatments': 'الجلسات والعلاجات السابقة',
+  'No sessions recorded for this patient.': 'لا توجد جلسات مسجلة لهذا المريض.',
+  'No treatment note.': 'لا توجد ملاحظة علاج.',
+  'Edit patient': 'تعديل المريض',
+  'Follow-up': 'متابعة',
+  'Date & time': 'التاريخ والوقت',
+  'Unable to sign in.': 'تعذر تسجيل الدخول.',
+  'Unable to sign in to RTS Clinic.': 'تعذر تسجيل الدخول إلى عيادة RTS.',
+  'Admin': 'مدير',
+  'Staff': 'موظف',
+  'Search sessions': 'البحث في الجلسات',
+  'Patient, service, date, or treatment': 'المريض أو الخدمة أو التاريخ أو العلاج',
+  'All statuses': 'كل الحالات',
+  'Outstanding': 'مبلغ مستحق',
+  'Clinic services': 'خدمات العيادة',
+  'Service name': 'اسم الخدمة',
+  'Add service': 'إضافة خدمة',
+  'Search payments': 'البحث في المدفوعات',
+  'Patient, session, provider, or amount': 'المريض أو الجلسة أو المزود أو المبلغ',
+  'All methods': 'كل الطرق',
+  'Search providers': 'البحث في المزودين',
+  'All providers': 'كل المزودين',
+  'Pending claims': 'مطالبات معلّقة',
+  'Mapped patients': 'مرضى مرتبطون',
+  'Insurance financial report': 'التقرير المالي للتأمين',
+  'Provider': 'المزود',
+  'Print / save PDF': 'طباعة / حفظ PDF',
+  'Generated bills': 'الفواتير المنشأة',
+  'Search bills': 'البحث في الفواتير',
+  'Gender': 'الجنس',
+  'Age': 'العمر',
+  'Select patient': 'اختر المريض',
+  'Search patients while typing': 'ابحث عن المرضى أثناء الكتابة',
+  'Use guest': 'استخدام زائر',
+  'Selected': 'تم الاختيار',
+  'Search or enter a service': 'ابحث أو أدخل خدمة',
+  'Custom service': 'خدمة مخصصة',
+  'Follow-up time': 'وقت المتابعة',
+  'Participation fee': 'رسوم مشاركة المريض',
+  'Insurance amount': 'مبلغ التأمين',
+  'Amount received from insurer': 'المبلغ المستلم من شركة التأمين',
+  'Settlement date': 'تاريخ التسوية',
+  'Requested': 'المطلوب',
+  'Received from insurer': 'المستلم من التأمين',
+  'Patient participation': 'مشاركة المريض',
+  'Insurance outstanding': 'مستحق التأمين',
+  'Adjust payment': 'تعديل الدفعة',
+  'Print receipt': 'طباعة الإيصال',
+  'Print all receipts': 'طباعة كل الإيصالات',
+  'Patient financial report': 'التقرير المالي للمريض',
+  'Full session report': 'تقرير الجلسات الكامل',
+  'NIS': 'شيكل',
+  'Generated': 'تم الإنشاء',
+  'Date range': 'نطاق التاريخ',
+  'Session total': 'إجمالي الجلسة',
+  'There are no closed sessions with an outstanding balance.': 'لا توجد جلسات مغلقة برصيد مستحق.',
+  'Only clinic administrators can manage clinic services.': 'يمكن لمديري العيادة فقط إدارة خدمات العيادة.',
+  'Patient name is required.': 'اسم المريض مطلوب.',
+  'years': 'سنة',
+  'paid': 'مدفوع',
+  'pending': 'معلّق',
+  'rejected': 'مرفوض',
+  'open': 'مفتوحة',
+  'closed': 'مغلقة',
+  'No matching sessions.': 'لا توجد جلسات مطابقة.',
+  'No matching payment records.': 'لا توجد مدفوعات مطابقة.',
+  'No providers found.': 'لم يتم العثور على مزودين.',
+  'No insurance claims in this range.': 'لا توجد مطالبات تأمين في هذا النطاق.',
+  'No generated bills found.': 'لم يتم العثور على فواتير منشأة.',
+  'No services configured. Staff can enter a custom service while creating a session.': 'لم تتم إضافة خدمات. يمكن للموظفين إدخال خدمة مخصصة عند إنشاء الجلسة.',
+  'Generated automatically when the patient is saved.': 'يتم إنشاؤه تلقائياً عند حفظ المريض.',
+  'Choose a saved service or keep typing to use free text.': 'اختر خدمة محفوظة أو تابع الكتابة لإدخال خدمة مخصصة.',
+  'Search closed sessions while typing': 'ابحث عن الجلسات المغلقة أثناء الكتابة',
+  'Delete this clinic service?': 'هل تريد حذف خدمة العيادة هذه؟',
+  'exclude patient participation': 'لا تشمل مشاركة المريض',
+  'Close & record payment': 'إغلاق وتسجيل دفعة',
   'Mon': 'الإثنين',
   'Tue': 'الثلاثاء',
   'Wed': 'الأربعاء',
@@ -163,8 +288,10 @@ function applyLanguage() {
     if (element.getAttribute('aria-label')) element.setAttribute('aria-label', tr(element.getAttribute('aria-label')));
   });
   document.querySelectorAll('.language-toggle').forEach((button) => {
-    button.textContent = language === 'ar' ? 'English' : 'العربية';
+    const label = button.querySelector('.language-toggle-label');
+    if (label) label.textContent = language === 'ar' ? 'English' : 'العربية';
     button.setAttribute('aria-label', language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية');
+    button.setAttribute('title', language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية');
   });
   document.title = language === 'ar' ? 'عيادة RTS' : 'RTS Clinic';
 }
@@ -172,24 +299,41 @@ function toggleLanguage() {
   language = language === 'ar' ? 'en' : 'ar';
   localStorage.setItem(languageKey, language);
   renderAll();
+  if (currentUser && currentClinic) {
+    $('signedInUser').textContent = `${currentClinic.name || currentClinic.id} · ${currentUser.name} · ${tr(currentUser.role === 'admin' ? 'Admin' : 'Staff')}`;
+  }
 }
-const state = JSON.parse(localStorage.getItem(storeKey) || 'null') || {
-  patients: [], sessions: [], payments: [], insurance: [], bills: []
-};
+const emptyState = () => ({
+  patients: [],
+  sessions: [],
+  payments: [],
+  insurance: [],
+  services: [],
+  bills: [],
+  medicalFiles: [],
+  settings: { nextPatientSequence: 1 }
+});
+let state = emptyState();
 
 let dialogMode = '';
 let pendingPaymentSessionId = '';
+let editingPaymentId = '';
 let editingPatientId = '';
 let calendarDate = new Date();
 let currentUser = null;
+let currentClinic = null;
 
 const $ = (id) => document.getElementById(id);
 const money = (value) => `₪${Number(value || 0).toFixed(2)}`;
+const nis = (value) => `${money(value)} ${tr('NIS')}`;
 const today = () => {
   const date = new Date();
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
-const id = (prefix) => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+const currentTime = () => {
+  const date = new Date();
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+};
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const patientById = (patientId) => state.patients.find((patient) => patient.id === patientId);
 const patientName = (patientId) => patientId === 'guest' ? 'Guest / unidentified' : patientById(patientId)?.fullName || patientById(patientId)?.name || 'Unknown patient';
@@ -200,18 +344,45 @@ const ageFromDob = (dateOfBirth) => {
   const now = new Date();
   let age = now.getFullYear() - birth.getFullYear();
   if (now.getMonth() < birth.getMonth() || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())) age -= 1;
-  return age >= 0 && age <= 130 ? String(age) : '';
+  return age >= 0 && age <= 130 ? age : null;
 };
-const patientPhoto = (patient) => /^data:image\/(?:jpeg|png|webp);base64,/.test(patient?.photo || '') ? patient.photo : '';
 const patientAvatar = (patient) => {
   const name = patientName(patient.id);
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '?';
-  return patientPhoto(patient) ? `<img class="patient-avatar" src="${patientPhoto(patient)}" alt="">` : `<span class="patient-avatar patient-avatar-fallback" aria-hidden="true">${esc(initials)}</span>`;
+  return `<span class="patient-avatar patient-avatar-fallback" aria-hidden="true">${esc(initials)}</span>`;
 };
 const sessionLabel = (sessionId) => {
   const session = sessionById(sessionId);
   return session ? `${session.date} ${session.time || ''} · ${patientName(session.patientId)}` : 'Unknown session';
 };
+const errorMessage = (error, fallback) => {
+  const message = String(error?.message || '').replace(/^Error invoking remote method '[^']+': Error:\s*/, '');
+  return tr(message || fallback);
+};
+function setInlineError(id, message, focus = false) {
+  const element = $(id);
+  if (!element) return;
+  element.textContent = message ? tr(message) : '';
+  if (message && focus) element.focus();
+}
+function showAppMessage(message, isError = false) {
+  const element = $('appMessage');
+  element.textContent = tr(message);
+  element.classList.toggle('is-error', isError);
+  element.classList.toggle('hidden', !message);
+  if (message && isError) element.focus();
+}
+function replaceState(nextState) {
+  state = { ...emptyState(), ...(nextState || {}) };
+  migrateState();
+  renderAll();
+}
+async function applyMutation(action, payload) {
+  const nextState = await window.rtsClinic.mutate(action, payload);
+  replaceState(nextState);
+  $('syncState').textContent = tr('Saved to clinic workspace');
+  return nextState;
+}
 
 function setupUpdater() {
   const updater = window.rtsUpdater;
@@ -239,19 +410,24 @@ function setupUpdater() {
     nowButton.onclick = async () => {
       nowButton.disabled = true;
       nowButton.textContent = 'Starting download…';
-      const result = await updater.download().catch(() => null);
-      if (!result?.ok) fallback('Automatic update failed. Use the secure release download page.');
+      try {
+        const result = await updater.download();
+        if (!result?.ok) fallback('Automatic update failed. Use the secure release download page.');
+      } catch (error) {
+        console.error('Update download failed:', error);
+        fallback('Automatic update failed. Use the secure release download page.');
+      }
     };
     overlay.classList.remove('hidden');
   });
   updater.on('updater-progress', (progress) => {
     const percent = Math.round(progress.percent || 0);
     $('updateProgressTrack').classList.remove('hidden');
-    $('updateProgressBar').style.width = `${Math.max(0, Math.min(100, percent))}%`;
+    $('updateProgressBar').value = Math.max(0, Math.min(100, percent));
     $('updateStatus').textContent = `Downloading ${percent}%`;
   });
   updater.on('updater-downloaded', () => {
-    $('updateProgressBar').style.width = '100%';
+    $('updateProgressBar').value = 100;
     $('updateStatus').textContent = 'The verified update is ready to install.';
     nowButton.disabled = false;
     nowButton.textContent = 'Restart and install';
@@ -261,7 +437,7 @@ function setupUpdater() {
     if (!overlay.classList.contains('hidden')) fallback('Automatic update failed. Use the secure release download page.');
   });
   laterButton.addEventListener('click', () => overlay.classList.add('hidden'));
-  updater.check().catch(() => {});
+  updater.check().catch((error) => console.error('Update check failed:', error));
 }
 
 function migrateState() {
@@ -282,40 +458,66 @@ function migrateState() {
   state.payments.forEach((payment) => {
     if (!payment.patientId) payment.patientId = sessionById(payment.sessionId)?.patientId || 'guest';
     if (!payment.status) payment.status = 'paid';
+    if (payment.method === 'insurance') {
+      payment.insuranceAmount = Number(payment.insuranceAmount ?? payment.amount ?? 0);
+      payment.participationFee = Number(payment.participationFee || 0);
+      payment.settledAmount = Number(payment.settledAmount ?? (payment.status === 'paid' ? payment.insuranceAmount : 0));
+      payment.amount = payment.insuranceAmount;
+    }
   });
-}
-
-function persist() {
-  localStorage.setItem(storeKey, JSON.stringify(state));
-  $('syncState').textContent = 'Saved locally';
-  renderAll();
-}
-
-function collectedPayments() {
-  return state.payments.filter((payment) => payment.status === 'paid');
+  if (!Array.isArray(state.medicalFiles)) state.medicalFiles = [];
+  if (!Array.isArray(state.services)) state.services = [];
 }
 
 function sessionPayments(sessionId) {
   return state.payments.filter((payment) => payment.sessionId === sessionId && payment.status !== 'void');
 }
 
-function sessionCollected(sessionId) {
-  return sessionPayments(sessionId).filter((payment) => payment.status === 'paid').reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+function paymentCollected(payment) {
+  if (payment.status === 'void') return 0;
+  if (payment.method === 'insurance') {
+    return Number(payment.participationFee || 0) + Number(payment.settledAmount || 0);
+  }
+  return payment.status === 'paid' ? Number(payment.amount || 0) : 0;
 }
 
-function sessionPendingClaims(sessionId) {
-  return sessionPayments(sessionId).filter((payment) => payment.status === 'pending').reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+function paymentPendingInsurance(payment) {
+  if (payment.method !== 'insurance' || payment.status !== 'pending') return 0;
+  return Math.max(Number(payment.insuranceAmount || payment.amount || 0) - Number(payment.settledAmount || 0), 0);
 }
 
-function sessionCommitted(sessionId) {
-  return sessionCollected(sessionId) + sessionPendingClaims(sessionId);
+function sessionFinance(sessionId) {
+  const session = sessionById(sessionId);
+  const payments = sessionPayments(sessionId);
+  const total = session?.status === 'closed' ? Number(session.amount || 0) : 0;
+  const received = payments.reduce((sum, payment) => sum + paymentCollected(payment), 0);
+  const pendingInsurance = payments.reduce((sum, payment) => sum + paymentPendingInsurance(payment), 0);
+  return {
+    total,
+    received,
+    pendingInsurance,
+    outstanding: Math.max(total - received, 0),
+    unclaimed: Math.max(total - received - pendingInsurance, 0)
+  };
 }
 
 function totals(from, to) {
-  const payments = collectedPayments().filter((payment) => (!from || payment.date >= from) && (!to || payment.date <= to));
+  const payments = state.payments.filter((payment) => payment.status !== 'void' && (!from || payment.date >= from) && (!to || payment.date <= to));
   const byMethod = { cash: 0, debit: 0, insurance: 0 };
-  payments.forEach((payment) => { byMethod[payment.method] = (byMethod[payment.method] || 0) + Number(payment.amount || 0); });
-  return { total: Object.values(byMethod).reduce((sum, value) => sum + value, 0), byMethod };
+  let participation = 0;
+  payments.forEach((payment) => {
+    if (payment.method === 'insurance') {
+      byMethod.insurance += Number(payment.settledAmount || 0);
+      participation += Number(payment.participationFee || 0);
+    } else if (payment.status === 'paid') {
+      byMethod[payment.method] = (byMethod[payment.method] || 0) + Number(payment.amount || 0);
+    }
+  });
+  return {
+    total: Object.values(byMethod).reduce((sum, value) => sum + value, 0) + participation,
+    participation,
+    byMethod
+  };
 }
 
 function renderDashboard() {
@@ -323,10 +525,10 @@ function renderDashboard() {
   $('todayCollected').textContent = money(day.total);
   $('todaySessions').textContent = state.sessions.filter((session) => session.date === today()).length;
   $('totalPatients').textContent = state.patients.length;
-  $('insuranceReceivable').textContent = money(state.payments.filter((payment) => payment.method === 'insurance' && payment.status === 'pending').reduce((sum, payment) => sum + Number(payment.amount || 0), 0));
+  $('insuranceReceivable').textContent = money(state.payments.reduce((sum, payment) => sum + paymentPendingInsurance(payment), 0));
   $('recentSessions').innerHTML = state.sessions.slice().reverse().slice(0, 6).map(sessionRow).join('') || '<p class="muted">No sessions yet.</p>';
   const max = Math.max(day.total, 1);
-  $('paymentMix').innerHTML = Object.entries(day.byMethod).map(([method, amount]) => `<div><div class="row-card"><span>${tr(method === 'debit' ? 'Debit card' : method[0].toUpperCase() + method.slice(1))}</span><strong>${money(amount)}</strong></div><div class="mix-bar"><span style="width:${Math.round(amount / max * 100)}%"></span></div></div>`).join('');
+  $('paymentMix').innerHTML = Object.entries(day.byMethod).map(([method, amount]) => `<div><div class="row-card"><span>${tr(method === 'debit' ? 'Debit card' : method[0].toUpperCase() + method.slice(1))}</span><strong>${money(amount)}</strong></div><progress class="mix-progress" max="${max}" value="${amount}"></progress></div>`).join('');
   renderCalendar();
   const upcoming = state.sessions.filter((session) => session.date >= today()).sort((a, b) => `${a.date} ${a.time || ''}`.localeCompare(`${b.date} ${b.time || ''}`)).slice(0, 5);
   $('upcomingSessions').innerHTML = upcoming.map(sessionRow).join('') || '<p class="muted">No upcoming sessions.</p>';
@@ -361,44 +563,115 @@ function renderPatients() {
   const patients = state.patients.filter((patient) => `${patient.fullName || patient.name} ${patient.phone} ${patient.fileNumber} ${patient.nationalId}`.toLowerCase().includes(search));
   const rows = patients.map((patient) => {
     const sessions = state.sessions.filter((session) => session.patientId === patient.id);
-    const collected = collectedPayments().filter((payment) => payment.patientId === patient.id).reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    const collected = state.payments.filter((payment) => payment.patientId === patient.id).reduce((sum, payment) => sum + paymentCollected(payment), 0);
     const age = ageFromDob(patient.dateOfBirth);
-    return `<tr><td><span class="pill">${esc(patient.fileNumber || 'Not assigned')}</span></td><td><div class="patient-summary">${patientAvatar(patient)}<div><strong>${esc(patientName(patient.id))}</strong><small>${esc(patient.sex || 'Sex not recorded')}${age ? ` · ${age} years` : ''}</small></div></div></td><td>${esc(patient.phone || 'Not recorded')}</td><td>${sessions.length}</td><td>${money(collected)}</td><td><button type="button" class="link-button" data-patient-id="${esc(patient.id)}">View record</button></td></tr>`;
+    const demographics = [patient.sex ? tr(patient.sex) : '', age !== null ? `${age} ${tr('years')}` : ''].filter(Boolean).join(' · ');
+    return `<tr><td><span class="pill">${esc(patient.fileNumber || 'Not assigned')}</span></td><td><div class="patient-summary">${patientAvatar(patient)}<div><strong>${esc(patientName(patient.id))}</strong>${demographics ? `<small>${esc(demographics)}</small>` : ''}</div></div></td><td>${esc(patient.phone || 'Not recorded')}</td><td>${sessions.length}</td><td>${money(collected)}</td><td><button type="button" class="link-button" data-patient-id="${esc(patient.id)}">View record</button></td></tr>`;
   }).join('');
   $('patientsTable').innerHTML = rows ? `<table><thead><tr><th>File number</th><th>Patient</th><th>Phone</th><th>Sessions</th><th>Collected</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="muted">No patients found.</p>';
 }
 
 function renderSessions() {
-  const rows = state.sessions.slice().reverse().map((session) => {
-    const collected = sessionCollected(session.id);
-    const pendingClaim = sessionPendingClaims(session.id);
-    return `<tr class="clickable-row" data-session-id="${esc(session.id)}"><td>${esc(session.date)}<br><small>${esc(session.time || '')}</small></td><td>${esc(patientName(session.patientId))}</td><td>${esc(session.service)}</td><td>${session.status === 'closed' ? money(session.amount) : `<span class="pill">${tr('Open')}</span>`}</td><td>${money(collected)}${pendingClaim ? `<br><small>${tr('Claim pending')}: ${money(pendingClaim)}</small>` : ''}</td><td>${session.status === 'closed' ? money(Number(session.amount) - collected - pendingClaim) : '—'}</td></tr>`;
+  const search = ($('sessionSearch')?.value || '').trim().toLowerCase();
+  const status = $('sessionStatusFilter')?.value || '';
+  const sessions = state.sessions.filter((session) => {
+    const finance = sessionFinance(session.id);
+    const searchable = `${patientName(session.patientId)} ${session.service} ${session.date} ${session.time || ''} ${session.treatment || ''} ${session.note || ''}`.toLowerCase();
+    const statusMatch = !status
+      || session.status === status
+      || (status === 'unpaid' && session.status === 'closed' && finance.outstanding > 0.005);
+    return searchable.includes(search) && statusMatch;
+  });
+  const rows = sessions.slice().reverse().map((session) => {
+    const finance = sessionFinance(session.id);
+    const accessibleLabel = `${tr('View details')}: ${patientName(session.patientId)}, ${session.date} ${session.time || ''}`;
+    return `<tr class="clickable-row" data-session-id="${esc(session.id)}"><td><button type="button" class="table-row-button" data-session-id="${esc(session.id)}" aria-label="${esc(accessibleLabel)}"><strong>${esc(session.date)}</strong><small>${esc(session.time || '')}</small></button></td><td>${esc(patientName(session.patientId))}</td><td>${esc(session.service)}</td><td>${session.status === 'closed' ? money(session.amount) : `<span class="pill">${tr('Open')}</span>`}</td><td>${money(finance.received)}${finance.pendingInsurance ? `<br><small>${tr('Claim pending')}: ${money(finance.pendingInsurance)}</small>` : ''}</td><td>${session.status === 'closed' ? money(finance.outstanding) : '—'}</td></tr>`;
   }).join('');
-  $('sessionsTable').innerHTML = rows ? `<table><thead><tr><th>Date / time</th><th>Patient</th><th>Service</th><th>Session value</th><th>Received</th><th>To allocate</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="muted">No sessions yet.</p>';
+  $('sessionsTable').innerHTML = rows ? `<table><thead><tr><th>Date / time</th><th>Patient</th><th>Service</th><th>Session value</th><th>Received</th><th>To allocate</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="muted">No matching sessions.</p>';
 }
 
 function renderPayments() {
-  const rows = state.payments.slice().reverse().map((payment) => `<tr><td>${esc(payment.date)}</td><td>${esc(patientName(payment.patientId))}</td><td>${esc(sessionLabel(payment.sessionId))}</td><td>${esc(payment.method)}</td><td>${esc(state.insurance.find((provider) => provider.id === payment.insuranceId)?.name || '')}</td><td>${money(payment.amount)}</td><td><span class="pill">${esc(payment.status || 'paid')}</span></td></tr>`).join('');
-  $('paymentsTable').innerHTML = rows ? `<table><thead><tr><th>Date</th><th>Patient</th><th>Session</th><th>Method</th><th>Insurance</th><th>Amount</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="muted">No payment records yet.</p>';
+  const search = ($('paymentSearch')?.value || '').trim().toLowerCase();
+  const method = $('paymentMethodFilter')?.value || '';
+  const status = $('paymentStatusFilter')?.value || '';
+  const payments = state.payments.filter((payment) => {
+    const provider = state.insurance.find((item) => item.id === payment.insuranceId)?.name || '';
+    const searchable = `${patientName(payment.patientId)} ${sessionLabel(payment.sessionId)} ${provider} ${payment.amount}`.toLowerCase();
+    return searchable.includes(search) && (!method || payment.method === method) && (!status || payment.status === status);
+  });
+  const rows = payments.slice().reverse().map((payment) => {
+    const provider = state.insurance.find((item) => item.id === payment.insuranceId)?.name || '';
+    const amounts = payment.method === 'insurance'
+      ? `${money(payment.insuranceAmount)} / ${money(payment.settledAmount)}`
+      : money(payment.amount);
+    return `<tr class="clickable-row" data-payment-id="${esc(payment.id)}"><td><button class="table-row-button" type="button" data-payment-id="${esc(payment.id)}"><strong>${esc(payment.date)}</strong><small>${tr('Adjust payment')}</small></button></td><td>${esc(patientName(payment.patientId))}</td><td>${esc(sessionLabel(payment.sessionId))}</td><td>${tr(payment.method === 'debit' ? 'Debit card' : payment.method[0].toUpperCase() + payment.method.slice(1))}</td><td>${esc(provider)}</td><td>${amounts}</td><td><span class="pill status-${esc(payment.status || 'paid')}">${tr(payment.status || 'paid')}</span></td></tr>`;
+  }).join('');
+  $('paymentsTable').innerHTML = rows ? `<table><thead><tr><th>Date</th><th>Patient</th><th>Session</th><th>Method</th><th>Insurance</th><th>Amount / settled</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="muted">No matching payment records.</p>';
 }
 
 function renderInsurance() {
-  $('insuranceList').innerHTML = state.insurance.map((provider) => `<div class="row-card"><div><strong>${esc(provider.name)}</strong><small>${esc(provider.contact || '')}</small></div><span class="pill">${state.payments.filter((payment) => payment.insuranceId === provider.id).length} claims</span></div>`).join('') || '<p class="muted">No providers configured.</p>';
-  $('claimsList').innerHTML = state.payments.filter((payment) => payment.method === 'insurance' && payment.status === 'pending').map((payment) => `<div class="claim"><strong>${esc(patientName(payment.patientId))} · ${money(payment.amount)}</strong><small>${esc(state.insurance.find((provider) => provider.id === payment.insuranceId)?.name || 'Provider not selected')} · Claim submitted</small></div>`).join('') || '<p class="muted">No outstanding insurance claims.</p>';
+  const selectedProvider = $('insuranceReportProvider')?.value || '';
+  $('insuranceReportProvider').innerHTML = `<option value="">${tr('All providers')}</option>${state.insurance.map((provider) => `<option value="${esc(provider.id)}">${esc(provider.name)}</option>`).join('')}`;
+  $('insuranceReportProvider').value = state.insurance.some((provider) => provider.id === selectedProvider) ? selectedProvider : '';
+  const search = ($('insuranceSearch')?.value || '').trim().toLowerCase();
+  const providerFilter = $('insuranceClaimFilter')?.value || '';
+  const providers = state.insurance.filter((provider) => {
+    const claims = state.payments.filter((payment) => payment.insuranceId === provider.id);
+    const mapped = state.patients.filter((patient) => patient.insuranceId === provider.id);
+    return `${provider.name} ${provider.contact || ''}`.toLowerCase().includes(search)
+      && (!providerFilter || (providerFilter === 'pending' && claims.some((claim) => claim.status === 'pending')) || (providerFilter === 'mapped' && mapped.length));
+  });
+  $('insuranceList').innerHTML = providers.map((provider) => {
+    const claims = state.payments.filter((payment) => payment.insuranceId === provider.id);
+    const mapped = state.patients.filter((patient) => patient.insuranceId === provider.id).length;
+    const requested = claims.reduce((sum, payment) => sum + Number(payment.insuranceAmount || 0), 0);
+    const received = claims.reduce((sum, payment) => sum + Number(payment.settledAmount || 0), 0);
+    return `<div class="row-card"><div><strong>${esc(provider.name)}</strong><small>${esc(provider.contact || '')}</small><small>${mapped} ${tr('Mapped patients')}</small></div><div><strong>${money(requested)} / ${money(received)}</strong><small>${tr('Requested')} / ${tr('Received')}</small></div></div>`;
+  }).join('') || '<p class="muted">No providers found.</p>';
+
+  const from = $('insuranceFrom')?.value || '';
+  const to = $('insuranceTo')?.value || '';
+  const reportProvider = $('insuranceReportProvider')?.value || '';
+  const claims = state.payments.filter((payment) => payment.method === 'insurance'
+    && (!from || payment.date >= from)
+    && (!to || payment.date <= to)
+    && (!reportProvider || payment.insuranceId === reportProvider));
+  const requested = claims.reduce((sum, payment) => sum + Number(payment.insuranceAmount || 0), 0);
+  const received = claims.reduce((sum, payment) => sum + Number(payment.settledAmount || 0), 0);
+  const participation = claims.reduce((sum, payment) => sum + Number(payment.participationFee || 0), 0);
+  const pending = claims.reduce((sum, payment) => sum + paymentPendingInsurance(payment), 0);
+  $('insuranceSummary').innerHTML = `<div class="financial-strip"><div><span>${tr('Requested')}</span><strong>${money(requested)}</strong></div><div><span>${tr('Received from insurer')}</span><strong>${money(received)}</strong></div><div><span>${tr('Insurance outstanding')}</span><strong>${money(pending)}</strong></div></div><p class="muted">${tr('Patient participation')}: ${money(participation)} · ${tr('Requested')} / ${tr('Received from insurer')} ${tr('exclude patient participation')}</p>`;
+  const rows = claims.slice().reverse().map((payment) => {
+    const session = sessionById(payment.sessionId);
+    const provider = state.insurance.find((item) => item.id === payment.insuranceId);
+    return `<tr class="clickable-row" data-payment-id="${esc(payment.id)}"><td>${esc(provider?.name || '')}</td><td>${esc(payment.date)}</td><td>${esc(patientName(payment.patientId))}</td><td>${esc(session?.service || '')}</td><td>${money(payment.insuranceAmount)}</td><td>${money(payment.participationFee)}</td><td>${money(payment.settledAmount)}</td><td>${money(paymentPendingInsurance(payment))}</td><td><span class="pill status-${esc(payment.status)}">${tr(payment.status)}</span></td></tr>`;
+  }).join('');
+  $('claimsList').innerHTML = rows ? `<table><thead><tr><th>Provider</th><th>Date</th><th>Patient</th><th>Treatment</th><th>Requested</th><th>Participation</th><th>Received</th><th>Outstanding</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="muted">No insurance claims in this range.</p>';
 }
 
 function renderReports() {
   const from = $('reportFrom').value;
   const to = $('reportTo').value;
-  const selectedSessions = state.sessions.filter((session) => (!from || session.date >= from) && (!to || session.date <= to));
+  const selectedSessions = state.sessions.filter((session) => session.status === 'closed' && (!from || session.date >= from) && (!to || session.date <= to));
   const result = totals(from, to);
   $('reportSummary').innerHTML = `<div class="metric-grid"><div class="metric"><span>Sessions</span><strong>${selectedSessions.length}</strong></div><div class="metric"><span>Collected</span><strong>${money(result.total)}</strong></div><div class="metric"><span>Cash</span><strong>${money(result.byMethod.cash)}</strong></div><div class="metric"><span>Insurance</span><strong>${money(result.byMethod.insurance)}</strong></div></div>`;
   $('reportsTable').innerHTML = `<table><thead><tr><th>Patient</th><th>Sessions</th><th>Session value</th><th>Collected</th><th>Balance</th></tr></thead><tbody>${state.patients.map((patient) => {
     const sessions = selectedSessions.filter((session) => session.patientId === patient.id);
     const value = sessions.reduce((sum, session) => sum + Number(session.amount || 0), 0);
-    const collected = state.payments.filter((payment) => payment.patientId === patient.id && payment.status !== 'void' && (!from || payment.date >= from) && (!to || payment.date <= to)).reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-    return sessions.length ? `<tr><td>${esc(patient.name)}</td><td>${sessions.length}</td><td>${money(value)}</td><td>${money(collected)}</td><td>${money(value - collected)}</td></tr>` : '';
+    const sessionIds = new Set(sessions.map((session) => session.id));
+    const collected = state.payments.filter((payment) => sessionIds.has(payment.sessionId)).reduce((sum, payment) => sum + paymentCollected(payment), 0);
+    return sessions.length ? `<tr><td>${esc(patientName(patient.id))}</td><td>${sessions.length}</td><td>${money(value)}</td><td>${money(collected)}</td><td>${money(Math.max(value - collected, 0))}</td></tr>` : '';
   }).join('')}</tbody></table>`;
+  const billSearch = ($('billSearch')?.value || '').trim().toLowerCase();
+  const bills = state.bills.filter((bill) => {
+    const inRange = (!from || !bill.to || bill.to >= from) && (!to || !bill.from || bill.from <= to);
+    return inRange && `${bill.from || ''} ${bill.to || ''} ${bill.generatedAt || ''} ${bill.totals?.total || ''}`.toLowerCase().includes(billSearch);
+  });
+  $('billsTable').innerHTML = bills.length ? `<table><thead><tr><th>Generated</th><th>Date range</th><th>Sessions</th><th>Session value</th><th>Collected</th><th>Outstanding</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>${bills.slice().reverse().map((bill) => `<tr><td>${esc(new Date(bill.generatedAt).toLocaleString(language === 'ar' ? 'ar' : 'en'))}</td><td>${esc(bill.from || 'Start')} – ${esc(bill.to || 'Today')}</td><td>${Number(bill.summary?.sessionCount || 0)}</td><td>${money(bill.summary?.sessionValue || 0)}</td><td>${money(bill.totals?.total || bill.summary?.received || 0)}</td><td>${money(bill.summary?.outstanding || 0)}</td><td><button type="button" class="link-button" data-print-bill="${esc(bill.id)}">${tr('Print / save PDF')}</button></td></tr>`).join('')}</tbody></table>` : '<p class="muted">No generated bills found.</p>';
+}
+
+function renderServices() {
+  $('serviceList').innerHTML = state.services.map((service) => `<span class="service-tag">${esc(service.name)}<button type="button" data-delete-service="${esc(service.id)}" aria-label="${esc(`${tr('Delete')} ${service.name}`)}">×</button></span>`).join('') || `<p class="muted">${tr('No services configured. Staff can enter a custom service while creating a session.')}</p>`;
 }
 
 function renderAll() {
@@ -408,19 +681,11 @@ function renderAll() {
   renderPayments();
   renderInsurance();
   renderReports();
+  renderServices();
   applyLanguage();
 }
 
-function patientOptions() {
-  return `<option value="guest">Guest / unidentified</option>${state.patients.map((patient) => `<option value="${esc(patient.id)}">${esc(patientName(patient.id))}</option>`).join('')}`;
-}
-
-function sessionOptions() {
-  return state.sessions.filter((session) => session.status === 'closed' && Number(session.amount) - sessionCommitted(session.id) > 0.005).map((session) => `<option value="${esc(session.id)}">${esc(sessionLabel(session.id))} · ${money(session.amount)}</option>`).join('');
-}
-
 function patientForm(patient) {
-  const selected = (value) => patient?.sex === value ? ' selected' : '';
   const alertOptions = [
     ['diabetes', 'Diabetes'],
     ['hypertension', 'High blood pressure'],
@@ -436,52 +701,245 @@ function patientForm(patient) {
   ];
   const alerts = Array.isArray(patient?.criticalAlerts) ? patient.criticalAlerts : [];
   const alertChecks = alertOptions.map(([value, label]) => `<label class="check-option"><input type="checkbox" name="criticalAlerts" value="${value}"${alerts.includes(value) ? ' checked' : ''}><span>${label}</span></label>`).join('');
-  return `<fieldset class="form-section"><legend>Identity and contact</legend><div class="form-grid"><label>Full legal name<input name="fullName" value="${esc(patient?.fullName || patient?.name || '')}" autocomplete="name" required></label><label>File number<input name="fileNumber" value="${esc(patient?.fileNumber || '')}" required placeholder="e.g. CL-000123"></label><label>Date of birth<input name="dateOfBirth" type="date" max="${today()}" value="${esc(patient?.dateOfBirth || '')}" required></label><label>Sex<select name="sex"><option value="">Not recorded</option><option value="Female"${selected('Female')}>Female</option><option value="Male"${selected('Male')}>Male</option><option value="Intersex"${selected('Intersex')}>Intersex</option><option value="Prefer not to say"${selected('Prefer not to say')}>Prefer not to say</option></select></label><label>Phone<input name="phone" type="tel" autocomplete="tel" value="${esc(patient?.phone || '')}"></label><label>National ID<input name="nationalId" value="${esc(patient?.nationalId || '')}" autocomplete="off"></label><label class="full-width">Address<textarea name="address" autocomplete="street-address">${esc(patient?.address || '')}</textarea></label><label>Emergency contact<input name="emergencyContact" value="${esc(patient?.emergencyContact || '')}"></label><label>Emergency phone<input name="emergencyPhone" type="tel" value="${esc(patient?.emergencyPhone || '')}"></label><label class="full-width">Profile photo<input name="photo" type="file" accept="image/jpeg,image/png,image/webp"><small class="muted">Optional. Stored locally as a small profile image.</small></label></div></fieldset><fieldset class="form-section critical-form-section"><legend>Critical clinical alerts</legend><p class="critical-help">Select anything a doctor or staff member must see before treatment.</p><div class="critical-checks">${alertChecks}</div><label>Critical alert note<textarea name="criticalNote" placeholder="Examples: penicillin reaction, pacemaker, seizure history, special precautions">${esc(patient?.criticalNote || '')}</textarea></label></fieldset><fieldset class="form-section"><legend>Medical record</legend><div class="form-grid"><label>Allergies<textarea name="allergies" placeholder="Record allergies or “None known”">${esc(patient?.allergies || '')}</textarea></label><label>Current conditions<textarea name="conditions">${esc(patient?.conditions || '')}</textarea></label><label>Medications<textarea name="medications">${esc(patient?.medications || '')}</textarea></label><label>Clinical notes<textarea name="medicalNotes">${esc(patient?.medicalNotes || '')}</textarea></label></div></fieldset><fieldset class="form-section"><legend>Administrative notes</legend><label><textarea name="notes">${esc(patient?.notes || '')}</textarea></label></fieldset>`;
+  const age = ageFromDob(patient?.dateOfBirth);
+  const providerOptions = state.insurance.map((provider) => `<option value="${esc(provider.id)}"${patient?.insuranceId === provider.id ? ' selected' : ''}>${esc(provider.name)}</option>`).join('');
+  return `<fieldset class="form-section"><legend>Identity and contact</legend><div class="form-grid"><label>Full legal name<input name="fullName" value="${esc(patient?.fullName || patient?.name || '')}" autocomplete="name" required></label>${patient?.fileNumber ? `<label>File number<input value="${esc(patient.fileNumber)}" readonly></label>` : `<div><span class="muted">${tr('File number')}</span><p class="field-help">${tr('Generated automatically when the patient is saved.')}</p></div>`}<label>Date of birth<div class="date-with-age"><input id="patientDob" name="dateOfBirth" type="date" min="1896-01-01" max="${today()}" value="${esc(patient?.dateOfBirth || '')}" required><output id="patientAge" class="age-output" for="patientDob">${age !== null ? `${age} ${tr('years')}` : tr('Age')}</output></div></label><div class="choice-field"><span>${tr('Gender')}</span><div class="radio-group" role="radiogroup" aria-label="${tr('Gender')}"><label class="radio-option"><input type="radio" name="sex" value="Male"${patient?.sex === 'Male' ? ' checked' : ''} required><span>${tr('Male')}</span></label><label class="radio-option"><input type="radio" name="sex" value="Female"${patient?.sex === 'Female' ? ' checked' : ''} required><span>${tr('Female')}</span></label></div></div><label>Phone<input name="phone" type="tel" autocomplete="tel" value="${esc(patient?.phone || '')}"></label><label>National ID<input name="nationalId" value="${esc(patient?.nationalId || '')}" autocomplete="off"></label><label>Insurance provider<select name="insuranceId"><option value="">${tr('Not recorded')}</option>${providerOptions}</select></label><label class="full-width">Address<textarea name="address" autocomplete="street-address">${esc(patient?.address || '')}</textarea></label><label>Emergency contact<input name="emergencyContact" value="${esc(patient?.emergencyContact || '')}"></label><label>Emergency phone<input name="emergencyPhone" type="tel" value="${esc(patient?.emergencyPhone || '')}"></label></div></fieldset><fieldset class="form-section critical-form-section"><legend>Critical clinical alerts</legend><p class="critical-help">Select anything a doctor or staff member must see before treatment.</p><div class="critical-checks">${alertChecks}</div><label>Critical alert note<textarea name="criticalNote" placeholder="Examples: penicillin reaction, pacemaker, seizure history, special precautions">${esc(patient?.criticalNote || '')}</textarea></label></fieldset><fieldset class="form-section"><legend>Medical record</legend><div class="form-grid"><label>Allergies<textarea name="allergies" placeholder="Record allergies or “None known”">${esc(patient?.allergies || '')}</textarea></label><label>Current conditions<textarea name="conditions">${esc(patient?.conditions || '')}</textarea></label><label>Medications<textarea name="medications">${esc(patient?.medications || '')}</textarea></label><label>Clinical notes<textarea name="medicalNotes">${esc(patient?.medicalNotes || '')}</textarea></label></div></fieldset><fieldset class="form-section"><legend>Administrative notes</legend><label><textarea name="notes">${esc(patient?.notes || '')}</textarea></label></fieldset>`;
 }
 
-function openRecord(type, sessionId = '') {
+function medicalFilesSection(recordType, recordId, prefix) {
+  return `<section class="medical-files"><div class="history-heading"><h4>${tr('Medical files')}</h4><div><button type="button" class="secondary file-upload-button" data-file-picker="${prefix}FileInput">${tr('Add file')}</button><input id="${prefix}FileInput" class="sr-only" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" data-file-upload data-record-type="${recordType}" data-record-id="${esc(recordId)}" data-file-list="${prefix}FileList" data-file-error="${prefix}FileError"></div></div><p class="muted">${tr('PDF, JPG, PNG, or WebP. Maximum 10 MB.')}</p><p id="${prefix}FileError" class="form-error" role="alert"></p><div id="${prefix}FileList" aria-live="polite"><p class="muted">${tr('Loading…')}</p></div></section>`;
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.ceil(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+async function renderMedicalFiles(recordType, recordId, listId, errorId) {
+  setInlineError(errorId, '');
+  try {
+    const files = await window.rtsClinic.files.list(recordType, recordId);
+    const list = $(listId);
+    if (!list) return;
+    list.innerHTML = files.length
+      ? files.map((file) => `<div class="medical-file-row"><div><strong>${esc(file.originalName)}</strong><small>${esc(formatFileSize(file.size))} · ${esc(new Date(file.uploadedAt).toLocaleString(language === 'ar' ? 'ar' : 'en'))}</small></div><div class="file-actions"><button type="button" class="link-button" data-file-download="${esc(file.id)}" data-file-error="${errorId}">${tr('Download')}</button>${currentUser?.role === 'admin' ? `<button type="button" class="link-button danger-link" data-file-delete="${esc(file.id)}" data-record-type="${recordType}" data-record-id="${esc(recordId)}" data-file-list="${listId}" data-file-error="${errorId}">${tr('Delete')}</button>` : ''}</div></div>`).join('')
+      : `<p class="muted">${tr('No medical files uploaded.')}</p>`;
+  } catch (error) {
+    setInlineError(errorId, errorMessage(error, 'Unable to load medical files.'));
+  }
+}
+
+function outstandingSessions(includeSessionId = '') {
+  return state.sessions.filter((session) => (
+    session.status === 'closed'
+    && (sessionFinance(session.id).outstanding > 0.005 || session.id === includeSessionId)
+  ));
+}
+
+function setupPatientPicker() {
+  const input = $('patientPickerInput');
+  const hidden = $('patientPickerValue');
+  const results = $('patientPickerResults');
+  const note = $('patientPickerSelection');
+  if (!input || !hidden || !results || !note) return;
+  const render = () => {
+    const query = input.value.trim().toLowerCase();
+    const patients = state.patients
+      .filter((patient) => `${patientName(patient.id)} ${patient.fileNumber || ''} ${patient.phone || ''}`.toLowerCase().includes(query))
+      .slice(0, 12);
+    results.innerHTML = patients.map((patient) => `<button type="button" class="typeahead-option" data-patient-choice="${esc(patient.id)}"><span><strong>${esc(patientName(patient.id))}</strong><small>${esc(patient.fileNumber || '')} · ${esc(patient.phone || '')}</small></span></button>`).join('');
+  };
+  input.addEventListener('input', () => {
+    hidden.value = '';
+    note.textContent = '';
+    render();
+  });
+  input.addEventListener('focus', render);
+  results.addEventListener('click', (event) => {
+    const choice = event.target.closest('[data-patient-choice]');
+    if (!choice) return;
+    const patient = patientById(choice.dataset.patientChoice);
+    hidden.value = patient.id;
+    input.value = patientName(patient.id);
+    note.textContent = `${tr('Selected')}: ${patient.fileNumber || patientName(patient.id)}`;
+    results.innerHTML = '';
+  });
+  $('useGuest')?.addEventListener('click', () => {
+    hidden.value = 'guest';
+    input.value = tr('Guest / unidentified');
+    note.textContent = tr('Selected');
+    results.innerHTML = '';
+  });
+}
+
+function setupServicePicker() {
+  const input = $('servicePickerInput');
+  const results = $('servicePickerResults');
+  if (!input || !results) return;
+  const render = () => {
+    const query = input.value.trim().toLowerCase();
+    results.innerHTML = state.services
+      .filter((service) => service.name.toLowerCase().includes(query))
+      .slice(0, 10)
+      .map((service) => `<button type="button" class="typeahead-option" data-service-choice="${esc(service.name)}"><strong>${esc(service.name)}</strong></button>`)
+      .join('');
+  };
+  input.addEventListener('input', render);
+  input.addEventListener('focus', render);
+  results.addEventListener('click', (event) => {
+    const choice = event.target.closest('[data-service-choice]');
+    if (!choice) return;
+    input.value = choice.dataset.serviceChoice;
+    results.innerHTML = '';
+    input.focus();
+  });
+}
+
+function updatePaymentFields() {
+  const method = $('paymentMethod')?.value;
+  const direct = $('directPaymentFields');
+  const insurance = $('insurancePaymentFields');
+  if (!direct || !insurance) return;
+  const isInsurance = method === 'insurance';
+  direct.classList.toggle('hidden', isInsurance);
+  insurance.classList.toggle('hidden', !isInsurance);
+  direct.querySelectorAll('input,select').forEach((field) => { field.disabled = isInsurance; });
+  insurance.querySelectorAll('input,select').forEach((field) => { field.disabled = !isInsurance; });
+}
+
+function setupSessionPicker(existingPayment) {
+  const input = $('sessionPickerInput');
+  const hidden = $('sessionPickerValue');
+  const results = $('sessionPickerResults');
+  const note = $('sessionPickerSelection');
+  if (!input || !hidden || !results || !note) return;
+  const available = () => outstandingSessions(existingPayment?.sessionId);
+  const selectSession = (sessionId) => {
+    const session = sessionById(sessionId);
+    if (!session) return;
+    hidden.value = session.id;
+    input.value = sessionLabel(session.id);
+    const finance = sessionFinance(session.id);
+    note.textContent = `${tr('Outstanding')}: ${money(finance.outstanding)}`;
+    const amountInput = $('paymentAmount');
+    const insuranceAmount = $('insuranceAmount');
+    if (amountInput && !existingPayment) amountInput.value = finance.outstanding.toFixed(2);
+    if (insuranceAmount && !existingPayment) insuranceAmount.value = Math.max(finance.unclaimed, 0).toFixed(2);
+    const patient = patientById(session.patientId);
+    if ($('paymentInsuranceId') && patient?.insuranceId && !existingPayment) $('paymentInsuranceId').value = patient.insuranceId;
+  };
+  const render = () => {
+    const query = input.value.trim().toLowerCase();
+    results.innerHTML = available()
+      .filter((session) => `${sessionLabel(session.id)} ${session.service} ${session.date}`.toLowerCase().includes(query))
+      .slice(0, 20)
+      .map((session) => {
+        const finance = sessionFinance(session.id);
+        return `<button type="button" class="typeahead-option" data-session-choice="${esc(session.id)}"><span><strong>${esc(patientName(session.patientId))}</strong><small>${esc(session.date)} ${esc(session.time || '')} · ${esc(session.service)}</small></span><strong>${money(finance.outstanding)}</strong></button>`;
+      }).join('');
+  };
+  input.addEventListener('input', () => {
+    hidden.value = '';
+    note.textContent = '';
+    render();
+  });
+  input.addEventListener('focus', render);
+  results.addEventListener('click', (event) => {
+    const choice = event.target.closest('[data-session-choice]');
+    if (!choice) return;
+    selectSession(choice.dataset.sessionChoice);
+    results.innerHTML = '';
+  });
+  if (existingPayment?.sessionId) selectSession(existingPayment.sessionId);
+  else if (pendingPaymentSessionId) selectSession(pendingPaymentSessionId);
+}
+
+function openRecord(type, recordId = '', paymentId = '') {
   if (type === 'payment' && currentUser?.role !== 'admin') {
-    alert('Only clinic administrators can manage payments.');
+    showAppMessage('Only clinic administrators can manage payments.', true);
     return;
   }
-  if (type === 'payment' && !sessionId && !sessionOptions()) {
-    alert('There are no closed sessions with an amount left to allocate.');
+  const existingPayment = type === 'payment' && paymentId ? state.payments.find((payment) => payment.id === paymentId) : null;
+  if (type === 'payment' && !existingPayment && !recordId && !outstandingSessions().length) {
+    showAppMessage('There are no closed sessions with an outstanding balance.', true);
     return;
   }
+  showAppMessage('');
+  setInlineError('recordError', '');
   dialogMode = type;
-  pendingPaymentSessionId = sessionId;
-  editingPatientId = type === 'patient' ? sessionId : '';
-  const patient = type === 'patient' && sessionId ? patientById(sessionId) : null;
+  pendingPaymentSessionId = type === 'payment' ? recordId : '';
+  editingPaymentId = existingPayment?.id || '';
+  editingPatientId = type === 'patient' ? recordId : '';
+  const patient = type === 'patient' && recordId ? patientById(recordId) : null;
+  const providerOptions = state.insurance.map((provider) => `<option value="${esc(provider.id)}"${existingPayment?.insuranceId === provider.id ? ' selected' : ''}>${esc(provider.name)}</option>`).join('');
   const fields = {
     patient: patientForm(patient),
-    session: `<label>Patient<select name="patientId" required>${patientOptions()}</select></label><label>Date<input name="date" type="date" value="${today()}" required></label><label>Time<input name="time" type="time" required></label><label>Service<input name="service" required></label><label class="full-width">Treatment / procedure<textarea name="treatment" placeholder="What was done during this visit?"></textarea></label><label class="full-width">Session note<textarea name="note"></textarea></label><label>Follow-up date<input name="followUp" type="date"></label>`,
-    payment: `<label>Session<select name="sessionId" required><option value="">Select closed session</option>${sessionOptions()}</select></label><label>Date<input name="date" type="date" value="${today()}" required></label><label>Amount<input name="amount" type="number" min="0.01" step="0.01" required></label><label>Method<select name="method"><option value="cash">Cash</option><option value="debit">Debit card</option><option value="insurance">Insurance</option></select></label><label>Insurance provider<select name="insuranceId"><option value="">Select provider</option>${state.insurance.map((provider) => `<option value="${esc(provider.id)}">${esc(provider.name)}</option>`).join('')}</select></label><label>Status<select name="status"><option value="paid">Paid</option><option value="pending">Pending / claim submitted</option><option value="rejected">Rejected</option></select></label>`
+    session: `<div class="typeahead full-width"><span>${tr('Patient')}</span><div class="typeahead-input-row"><input id="patientPickerInput" type="search" autocomplete="off" placeholder="${tr('Search patients while typing')}" role="combobox" aria-controls="patientPickerResults"><button id="useGuest" class="secondary" type="button">${tr('Use guest')}</button></div><input id="patientPickerValue" name="patientId" type="hidden" required><p id="patientPickerSelection" class="selection-note"></p><div id="patientPickerResults" class="typeahead-results" role="listbox"></div></div><label>Date<input name="date" type="date" value="${today()}" required></label><label>Time<input name="time" type="time" value="${currentTime()}" required></label><div class="typeahead full-width"><span>${tr('Service')}</span><input id="servicePickerInput" name="service" autocomplete="off" placeholder="${tr('Search or enter a service')}" required role="combobox" aria-controls="servicePickerResults"><p class="field-help">${tr('Choose a saved service or keep typing to use free text.')}</p><div id="servicePickerResults" class="typeahead-results" role="listbox"></div></div><label class="full-width">Treatment / procedure<textarea name="treatment" placeholder="What was done during this visit?"></textarea></label><label class="full-width">Session note<textarea name="note"></textarea></label><label>Follow-up date<input name="followUpDate" type="date"></label><label>Follow-up time<input name="followUpTime" type="time"></label>`,
+    payment: `<div class="typeahead full-width"><span>${tr('Session')}</span><input id="sessionPickerInput" type="search" autocomplete="off" placeholder="${tr('Search closed sessions while typing')}" role="combobox" aria-controls="sessionPickerResults"><input id="sessionPickerValue" name="sessionId" type="hidden" required><p id="sessionPickerSelection" class="selection-note"></p><div id="sessionPickerResults" class="typeahead-results" role="listbox"></div></div><label>Date<input name="date" type="date" value="${esc(existingPayment?.date || today())}" required></label><label>Method<select id="paymentMethod" name="method"><option value="cash"${existingPayment?.method === 'cash' ? ' selected' : ''}>Cash</option><option value="debit"${existingPayment?.method === 'debit' ? ' selected' : ''}>Debit card</option><option value="insurance"${existingPayment?.method === 'insurance' ? ' selected' : ''}>Insurance</option></select></label><div id="directPaymentFields" class="conditional-fields"><label>Amount<input id="paymentAmount" name="amount" type="number" min="0.01" step="0.01" value="${esc(existingPayment?.method !== 'insurance' ? existingPayment?.amount || '' : '')}" required></label><input name="status" type="hidden" value="paid"></div><div id="insurancePaymentFields" class="conditional-fields hidden"><label>Insurance provider<select id="paymentInsuranceId" name="insuranceId" required><option value="">Select provider</option>${providerOptions}</select></label><label>Participation fee<input name="participationFee" type="number" min="0" step="0.01" value="${esc(existingPayment?.participationFee || 0)}" required></label><label>Insurance amount<input id="insuranceAmount" name="insuranceAmount" type="number" min="0.01" step="0.01" value="${esc(existingPayment?.insuranceAmount || '')}" required></label><label>Amount received from insurer<input name="settledAmount" type="number" min="0" step="0.01" value="${esc(existingPayment?.settledAmount || 0)}" required></label><label>Settlement date<input name="settlementDate" type="date" value="${esc(existingPayment?.settlementDate || '')}"></label><label>Status<select name="status"><option value="pending"${existingPayment?.status === 'pending' ? ' selected' : ''}>Pending / claim submitted</option><option value="paid"${existingPayment?.status === 'paid' ? ' selected' : ''}>Paid</option><option value="rejected"${existingPayment?.status === 'rejected' ? ' selected' : ''}>Rejected</option></select></label></div>`
   };
-  $('dialogTitle').textContent = type === 'patient' ? (patient ? 'Edit patient record' : 'Add patient') : type === 'session' ? 'Add session' : 'Record payment';
+  $('dialogTitle').textContent = type === 'patient'
+    ? (patient ? 'Edit patient record' : 'Add patient')
+    : type === 'session' ? 'Add session' : existingPayment ? 'Adjust payment' : 'Record payment';
   $('dialogFields').innerHTML = fields[type];
-  if (type === 'payment' && sessionId) $('dialogFields').querySelector('[name="sessionId"]').value = sessionId;
   applyLanguage();
   $('recordDialog').showModal();
+  if (type === 'patient') {
+    $('patientDob')?.addEventListener('input', (event) => {
+      const age = ageFromDob(event.target.value);
+      $('patientAge').textContent = age === null ? tr('Age') : `${age} ${tr('years')}`;
+    });
+  }
+  if (type === 'session') {
+    setupPatientPicker();
+    setupServicePicker();
+  }
+  if (type === 'payment') {
+    setupSessionPicker(existingPayment);
+    $('paymentMethod').addEventListener('change', updatePaymentFields);
+    updatePaymentFields();
+  }
 }
 
 function openSessionDetails(sessionId) {
   const session = sessionById(sessionId);
   if (!session) return;
   const payments = sessionPayments(session.id);
-  const collected = sessionCollected(session.id);
-  const pendingClaim = sessionPendingClaims(session.id);
-  const remaining = session.status === 'closed' ? Number(session.amount) - sessionCommitted(session.id) : 0;
-  $('sessionDetails').innerHTML = `<div class="detail-grid"><div><span class="muted">Patient</span><strong>${esc(patientName(session.patientId))}</strong><button type="button" class="link-button" data-patient-id="${esc(session.patientId)}">Open patient file</button></div><div><span class="muted">Date & time</span><strong>${esc(session.date)} ${esc(session.time || '')}</strong></div><div><span class="muted">Service</span><strong>${esc(session.service)}</strong></div><div><span class="muted">Status</span><strong>${session.status === 'closed' ? 'Closed' : 'Open'}</strong></div></div><section class="session-clinical-summary"><h4>Treatment and follow-up</h4><p><strong>${esc(session.treatment || 'No treatment recorded.')}</strong></p><p class="muted">${session.followUp ? `Follow-up: ${esc(session.followUp)}` : 'No follow-up date recorded.'}</p><p>${esc(session.note || 'No session note.')}</p></section><h4>Payments</h4>${payments.map((payment) => `<div class="row-card"><span>${esc(payment.method)} · ${esc(payment.status || 'paid')}</span><strong>${money(payment.amount)}</strong></div>`).join('') || '<p class="muted">No payments recorded.</p>'}${session.status === 'closed' ? `<div class="detail-total"><span>Received / pending claim / to allocate</span><strong>${money(collected)} / ${money(pendingClaim)} / ${money(remaining)}</strong></div>${remaining > 0.005 ? `<div class="dialog-actions"><button type="button" class="primary" data-record-payment="${esc(session.id)}">Record payment</button></div>` : ''}` : `<form id="closeSessionForm" class="form-grid"><label>Final session amount<input name="amount" type="number" min="0.01" step="0.01" required></label><label>Closing note<textarea name="closingNote"></textarea></label><div class="dialog-actions"><button class="primary" type="submit">Close session</button></div></form>`}`;
+  const finance = sessionFinance(session.id);
+  const paymentAction = currentUser?.role === 'admin' && finance.outstanding > 0.005
+    ? `<button type="button" class="primary" data-record-payment="${esc(session.id)}">${tr('Record payment')}</button>`
+    : '';
+  const paymentRows = payments.map((payment) => {
+    const amountLabel = payment.method === 'insurance'
+      ? `${money(payment.participationFee)} + ${money(payment.settledAmount)} / ${money(payment.insuranceAmount)}`
+      : money(payment.amount);
+    return `<button type="button" class="row-card payment-row-button" data-payment-id="${esc(payment.id)}"><span>${tr(payment.method === 'debit' ? 'Debit card' : payment.method[0].toUpperCase() + payment.method.slice(1))} · ${tr(payment.status || 'paid')}</span><strong>${amountLabel}</strong></button>`;
+  }).join('');
+  const followUp = session.followUpDate || session.followUp;
+  $('sessionDetails').innerHTML = `<section class="detail-section"><div class="detail-grid"><div><span class="muted">Patient</span><strong>${esc(patientName(session.patientId))}</strong>${session.patientId !== 'guest' ? `<button type="button" class="link-button" data-patient-id="${esc(session.patientId)}">Open patient file</button>` : ''}</div><div><span class="muted">Date & time</span><strong>${esc(session.date)} ${esc(session.time || '')}</strong></div><div><span class="muted">Service</span><strong>${esc(session.service)}</strong></div><div><span class="muted">Status</span><strong>${tr(session.status === 'closed' ? 'Closed' : 'Open')}</strong></div></div></section><section class="detail-section"><h4>Treatment and follow-up</h4><p><strong>${esc(session.treatment || 'No treatment recorded.')}</strong></p><p class="muted">${followUp ? `${tr('Follow-up')}: ${esc(followUp)} ${esc(session.followUpTime || '')}` : tr('No follow-up date recorded.')}</p><p>${esc(session.note || 'No session note.')}</p>${session.closingNote ? `<p><strong>${tr('Closing note')}:</strong> ${esc(session.closingNote)}</p>` : ''}</section>${session.status === 'closed' ? `<section class="detail-section"><div class="history-heading"><h4>${tr('Payments')}</h4><strong class="nis-total"><span class="currency-mark" aria-hidden="true">₪</span>${money(session.amount)} <small>${tr('NIS')}</small></strong></div>${paymentRows || '<p class="muted">No payments recorded.</p>'}<div class="financial-strip"><div><span>${tr('Received')}</span><strong>${money(finance.received)}</strong></div><div><span>${tr('Claim pending')}</span><strong>${money(finance.pendingInsurance)}</strong></div><div><span>${tr('To allocate')}</span><strong>${money(finance.outstanding)}</strong></div></div><div class="detail-actions"><button type="button" class="secondary" data-print-session="${esc(session.id)}">${tr('Print receipt')}</button>${paymentAction}</div></section>` : `<section class="detail-section"><form id="closeSessionForm" class="form-grid"><label>Final session amount<input name="amount" type="number" min="0.01" step="0.01" required></label><label>Closing note<textarea name="closingNote"></textarea></label><p id="sessionActionError" class="form-error full-width" role="alert" tabindex="-1"></p><div class="dialog-actions"><button class="secondary" type="submit" value="details">Close session</button>${currentUser?.role === 'admin' ? `<button class="primary" type="submit" value="payment">${tr('Close & record payment')}</button>` : ''}</div></form></section>`}${medicalFilesSection('session', session.id, 'session')}`;
   applyLanguage();
-  $('sessionDialog').showModal();
-  $('closeSessionForm')?.addEventListener('submit', (event) => {
+  if (!$('sessionDialog').open) $('sessionDialog').showModal();
+  renderMedicalFiles('session', session.id, 'sessionFileList', 'sessionFileError');
+  $('closeSessionForm')?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.target).entries());
-    session.amount = Number(data.amount);
-    session.closingNote = data.closingNote;
-    session.status = 'closed';
-    $('sessionDialog').close('saved');
-    persist();
+    const submit = event.submitter;
+    const continueToPayment = submit.value === 'payment';
+    submit.disabled = true;
+    setInlineError('sessionActionError', '');
+    try {
+      await applyMutation('session-close', { sessionId: session.id, amount: data.amount, closingNote: data.closingNote });
+      if (continueToPayment) {
+        $('sessionDialog').close('payment');
+        openRecord('payment', session.id);
+      } else {
+        openSessionDetails(session.id);
+      }
+    } catch (error) {
+      setInlineError('sessionActionError', errorMessage(error, 'Unable to save changes.'), true);
+    } finally {
+      submit.disabled = false;
+    }
   });
 }
 
@@ -508,38 +966,143 @@ function openPatientDetails(patientId) {
   const criticalBox = criticalAlerts.length || patient.criticalNote
     ? `<section class="critical-alert-box"><div class="critical-alert-heading"><span class="critical-icon" aria-hidden="true">!</span><div><strong>Critical clinical alerts</strong><small>Review before treatment</small></div></div><div class="critical-tags">${criticalAlerts.map((alert) => `<span>${esc(criticalLabels[alert] || alert)}</span>`).join('')}</div>${patient.criticalNote ? `<p>${esc(patient.criticalNote)}</p>` : ''}</section>`
     : `<section class="critical-alert-box critical-alert-box-empty"><strong>No critical alerts recorded</strong><span>Confirm this before treatment if the patient is new.</span></section>`;
-  $('patientDetails').innerHTML = `<div class="patient-record-heading">${patientAvatar(patient)}<div><h3>${esc(patientName(patient.id))}</h3><p class="muted">File ${esc(patient.fileNumber || 'not assigned')}${age ? ` · ${age} years old` : ''}</p></div></div>${criticalBox}<div class="detail-grid"><div><span class="muted">Date of birth</span><strong>${recordValue(patient.dateOfBirth)}</strong></div><div><span class="muted">Sex</span><strong>${recordValue(patient.sex)}</strong></div><div><span class="muted">Phone</span><strong>${recordValue(patient.phone)}</strong></div><div><span class="muted">National ID</span><strong>${recordValue(patient.nationalId)}</strong></div><div><span class="muted">Emergency contact</span><strong>${recordValue(patient.emergencyContact)}${patient.emergencyPhone ? ` · ${esc(patient.emergencyPhone)}` : ''}</strong></div><div><span class="muted">Address</span><strong>${recordValue(patient.address)}</strong></div></div><section class="medical-record"><h4>Medical record</h4><div class="detail-grid"><div><span class="muted">Allergies</span><strong>${recordValue(patient.allergies)}</strong></div><div><span class="muted">Conditions</span><strong>${recordValue(patient.conditions)}</strong></div><div><span class="muted">Medications</span><strong>${recordValue(patient.medications)}</strong></div><div><span class="muted">Clinical notes</span><strong>${recordValue(patient.medicalNotes)}</strong></div></div></section><section class="care-history"><div class="history-heading"><h4>Previous sessions and treatments</h4><span class="pill">${sessions.length} visit${sessions.length === 1 ? '' : 's'}</span></div>${sessions.map((session) => `<button type="button" class="history-entry" data-session-id="${esc(session.id)}"><div><strong>${esc(session.date)} ${esc(session.time || '')} · ${esc(session.service)}</strong><small>${esc(session.treatment || session.note || session.closingNote || 'No treatment note.')}${session.followUp ? ` · Follow-up ${esc(session.followUp)}` : ''}</small></div><span class="pill">${esc(session.status)}</span></button>`).join('') || '<p class="muted">No sessions recorded for this patient.</p>'}</section><div class="dialog-actions"><button type="button" class="secondary" data-edit-patient="${esc(patient.id)}">Edit patient</button></div>`;
+  const provider = state.insurance.find((item) => item.id === patient.insuranceId);
+  $('patientDetails').innerHTML = `<div class="patient-record-heading">${patientAvatar(patient)}<div><h3>${esc(patientName(patient.id))}</h3><p class="muted">File ${esc(patient.fileNumber || 'not assigned')}${age !== null ? ` · ${age} ${tr('years')}` : ''}</p></div></div>${criticalBox}<div class="detail-grid"><div><span class="muted">Date of birth</span><strong>${recordValue(patient.dateOfBirth)}</strong></div><div><span class="muted">Gender</span><strong>${recordValue(patient.sex)}</strong></div><div><span class="muted">Phone</span><strong>${recordValue(patient.phone)}</strong></div><div><span class="muted">National ID</span><strong>${recordValue(patient.nationalId)}</strong></div><div><span class="muted">Insurance provider</span><strong>${recordValue(provider?.name)}</strong></div><div><span class="muted">Emergency contact</span><strong>${recordValue(patient.emergencyContact)}${patient.emergencyPhone ? ` · ${esc(patient.emergencyPhone)}` : ''}</strong></div><div><span class="muted">Address</span><strong>${recordValue(patient.address)}</strong></div></div><section class="medical-record"><h4>Medical record</h4><div class="detail-grid"><div><span class="muted">Allergies</span><strong>${recordValue(patient.allergies)}</strong></div><div><span class="muted">Conditions</span><strong>${recordValue(patient.conditions)}</strong></div><div><span class="muted">Medications</span><strong>${recordValue(patient.medications)}</strong></div><div><span class="muted">Clinical notes</span><strong>${recordValue(patient.medicalNotes)}</strong></div></div></section>${medicalFilesSection('patient', patient.id, 'patient')}<section class="care-history"><div class="history-heading"><h4>Previous sessions and treatments</h4><span class="pill">${sessions.length} visit${sessions.length === 1 ? '' : 's'}</span></div>${sessions.map((session) => `<button type="button" class="history-entry" data-session-id="${esc(session.id)}"><div><strong>${esc(session.date)} ${esc(session.time || '')} · ${esc(session.service)}</strong><small>${esc(session.treatment || session.note || session.closingNote || 'No treatment note.')}${session.followUpDate || session.followUp ? ` · ${tr('Follow-up')} ${esc(session.followUpDate || session.followUp)} ${esc(session.followUpTime || '')}` : ''}</small></div><span class="pill">${tr(session.status)}</span></button>`).join('') || '<p class="muted">No sessions recorded for this patient.</p>'}</section><div class="detail-actions"><button type="button" class="secondary" data-print-patient-receipts="${esc(patient.id)}">${tr('Print all receipts')}</button><button type="button" class="secondary" data-print-patient-finance="${esc(patient.id)}">${tr('Patient financial report')}</button><button type="button" class="secondary" data-print-patient-sessions="${esc(patient.id)}">${tr('Full session report')}</button><button type="button" class="primary" data-edit-patient="${esc(patient.id)}">Edit patient</button></div>`;
   applyLanguage();
   $('patientDialog').showModal();
+  renderMedicalFiles('patient', patient.id, 'patientFileList', 'patientFileError');
 }
 
-function imageDataForStorage(file) {
-  if (!file.type.match(/^image\/(jpeg|png|webp)$/) || file.size > 5 * 1024 * 1024) throw new Error('Use a JPG, PNG, or WebP image smaller than 5 MB.');
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('The profile image could not be read.'));
-    reader.onload = () => {
-      const image = new Image();
-      image.onerror = () => reject(new Error('The profile image could not be processed.'));
-      image.onload = () => {
-        const size = 160;
-        const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
-        const sourceX = (image.naturalWidth - sourceSize) / 2;
-        const sourceY = (image.naturalHeight - sourceSize) / 2;
-        const canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
-        canvas.getContext('2d').drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
-      };
-      image.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  });
+function printDocument(title, body) {
+  const printArea = $('printArea');
+  printArea.innerHTML = `<article class="print-document"><h1>${esc(title)}</h1><p class="print-meta">${esc(currentClinic?.name || 'RTS Clinic')} · ${esc(new Date().toLocaleString(language === 'ar' ? 'ar' : 'en'))}</p>${body}</article>`;
+  printArea.setAttribute('aria-hidden', 'false');
+  const cleanup = () => {
+    printArea.innerHTML = '';
+    printArea.setAttribute('aria-hidden', 'true');
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+  window.print();
+  window.setTimeout(() => {
+    if (printArea.innerHTML) cleanup();
+  }, 30000);
 }
 
-migrateState();
+function paymentPrintRows(payments) {
+  return payments.map((payment) => {
+    const provider = state.insurance.find((item) => item.id === payment.insuranceId)?.name || '';
+    const paid = payment.method === 'insurance' ? paymentCollected(payment) : Number(payment.amount || 0);
+    return `<tr><td>${esc(payment.date)}</td><td>${esc(payment.method)}</td><td>${esc(provider)}</td><td>${money(paid)}</td><td>${esc(payment.status)}</td></tr>`;
+  }).join('');
+}
+
+function printSessionReceipt(sessionId) {
+  const session = sessionById(sessionId);
+  if (!session) return;
+  const payments = sessionPayments(session.id);
+  const finance = sessionFinance(session.id);
+  printDocument(`${tr('Print receipt')} · ${patientName(session.patientId)}`, `<p>${esc(session.date)} ${esc(session.time || '')} · ${esc(session.service)}</p><table><thead><tr><th>Date</th><th>Method</th><th>Provider</th><th>Received</th><th>Status</th></tr></thead><tbody>${paymentPrintRows(payments) || '<tr><td colspan="5">No payments recorded.</td></tr>'}</tbody></table><p class="print-total">${tr('Session total')}: ${nis(session.amount)} · ${tr('Received')}: ${nis(finance.received)} · ${tr('Balance')}: ${nis(finance.outstanding)}</p>`);
+}
+
+function printPatientReceipts(patientId) {
+  const patient = patientById(patientId);
+  if (!patient) return;
+  const sessions = state.sessions.filter((session) => session.patientId === patientId && session.status === 'closed');
+  const body = sessions.map((session) => {
+    const finance = sessionFinance(session.id);
+    return `<h2>${esc(session.date)} ${esc(session.time || '')} · ${esc(session.service)}</h2><table><thead><tr><th>Date</th><th>Method</th><th>Provider</th><th>Received</th><th>Status</th></tr></thead><tbody>${paymentPrintRows(sessionPayments(session.id)) || '<tr><td colspan="5">No payments recorded.</td></tr>'}</tbody></table><p>${tr('Session total')}: ${nis(session.amount)} · ${tr('Received')}: ${nis(finance.received)} · ${tr('Balance')}: ${nis(finance.outstanding)}</p>`;
+  }).join('') || '<p>No closed sessions.</p>';
+  printDocument(`${tr('Print all receipts')} · ${patientName(patientId)}`, body);
+}
+
+function printPatientFinancialReport(patientId) {
+  const patient = patientById(patientId);
+  if (!patient) return;
+  const sessions = state.sessions.filter((session) => session.patientId === patientId && session.status === 'closed');
+  const rows = sessions.map((session) => {
+    const finance = sessionFinance(session.id);
+    return `<tr><td>${esc(session.date)}</td><td>${esc(session.service)}</td><td>${money(session.amount)}</td><td>${money(finance.received)}</td><td>${money(finance.pendingInsurance)}</td><td>${money(finance.outstanding)}</td></tr>`;
+  }).join('');
+  printDocument(`${tr('Patient financial report')} · ${patientName(patientId)}`, `<p>${tr('File number')}: ${esc(patient.fileNumber)}</p><table><thead><tr><th>Date</th><th>Service</th><th>Session total</th><th>Received</th><th>Claim pending</th><th>Balance</th></tr></thead><tbody>${rows || '<tr><td colspan="6">No closed sessions.</td></tr>'}</tbody></table>`);
+}
+
+function printPatientSessionReport(patientId) {
+  const patient = patientById(patientId);
+  if (!patient) return;
+  const sessions = state.sessions.filter((session) => session.patientId === patientId).sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+  const body = sessions.map((session) => `<h2>${esc(session.date)} ${esc(session.time || '')} · ${esc(session.service)}</h2><p><strong>${tr('Treatment / procedure')}:</strong> ${esc(session.treatment || 'Not recorded')}</p><p><strong>${tr('Session note')}:</strong> ${esc(session.note || 'Not recorded')}</p><p><strong>${tr('Follow-up')}:</strong> ${esc(session.followUpDate || session.followUp || 'Not recorded')} ${esc(session.followUpTime || '')}</p><p><strong>${tr('Closing note')}:</strong> ${esc(session.closingNote || 'Not recorded')}</p>`).join('') || '<p>No sessions recorded.</p>';
+  printDocument(`${tr('Full session report')} · ${patientName(patientId)}`, body);
+}
+
+function printInsuranceReport() {
+  const providerId = $('insuranceReportProvider').value;
+  const provider = state.insurance.find((item) => item.id === providerId);
+  const from = $('insuranceFrom').value;
+  const to = $('insuranceTo').value;
+  const claims = state.payments.filter((payment) => payment.method === 'insurance'
+    && (!providerId || payment.insuranceId === providerId)
+    && (!from || payment.date >= from)
+    && (!to || payment.date <= to));
+  const rows = claims.map((payment) => {
+    const session = sessionById(payment.sessionId);
+    return `<tr><td>${esc(payment.date)}</td><td>${esc(patientName(payment.patientId))}</td><td>${esc(session?.service || '')}</td><td>${money(payment.insuranceAmount)}</td><td>${money(payment.participationFee)}</td><td>${money(payment.settledAmount)}</td><td>${money(paymentPendingInsurance(payment))}</td></tr>`;
+  }).join('');
+  const requested = claims.reduce((sum, payment) => sum + Number(payment.insuranceAmount || 0), 0);
+  const received = claims.reduce((sum, payment) => sum + Number(payment.settledAmount || 0), 0);
+  printDocument(`${tr('Insurance financial report')} · ${provider?.name || tr('All providers')}`, `<p>${tr('Date range')}: ${esc(from || 'Start')} – ${esc(to || 'Today')}</p><table><thead><tr><th>Date</th><th>Patient</th><th>Treatment</th><th>Requested</th><th>Participation</th><th>Received</th><th>Outstanding</th></tr></thead><tbody>${rows || '<tr><td colspan="7">No claims.</td></tr>'}</tbody></table><p class="print-total">${tr('Requested')}: ${nis(requested)} · ${tr('Received from insurer')}: ${nis(received)}</p>`);
+}
+
+function printRevenueReport(bill = null) {
+  const from = bill?.from ?? $('reportFrom').value;
+  const to = bill?.to ?? $('reportTo').value;
+  const sessions = state.sessions.filter((session) => session.status === 'closed' && (!from || session.date >= from) && (!to || session.date <= to));
+  const rows = sessions.map((session) => {
+    const finance = sessionFinance(session.id);
+    return `<tr><td>${esc(session.date)}</td><td>${esc(patientName(session.patientId))}</td><td>${esc(session.service)}</td><td>${money(session.amount)}</td><td>${money(finance.received)}</td><td>${money(finance.outstanding)}</td></tr>`;
+  }).join('');
+  const value = sessions.reduce((sum, session) => sum + Number(session.amount || 0), 0);
+  const received = sessions.reduce((sum, session) => sum + sessionFinance(session.id).received, 0);
+  printDocument(`${tr('Bill and revenue report')} · ${from || 'Start'} – ${to || 'Today'}`, `<table><thead><tr><th>Date</th><th>Patient</th><th>Service</th><th>Session value</th><th>Received</th><th>Balance</th></tr></thead><tbody>${rows || '<tr><td colspan="6">No sessions.</td></tr>'}</tbody></table><p class="print-total">${tr('Session value')}: ${nis(value)} · ${tr('Collected')}: ${nis(received)} · ${tr('Balance')}: ${nis(Math.max(value - received, 0))}</p>`);
+}
+
 setupUpdater();
+
+async function handleLegacyWorkspace() {
+  const raw = localStorage.getItem(legacyStoreKey);
+  if (!raw) return;
+  let legacyState;
+  try {
+    legacyState = JSON.parse(raw);
+  } catch (error) {
+    console.error('Discarding invalid legacy clinic data:', error);
+    localStorage.removeItem(legacyStoreKey);
+    showAppMessage('Legacy clinic data was removed without importing it.', true);
+    return;
+  }
+  const clinicName = currentClinic?.name || currentClinic?.id || '';
+  const prompt = language === 'ar'
+    ? `تم العثور على بيانات عيادة قديمة غير مرتبطة بمعرّف عيادة. هل تريد نقلها إلى "${clinicName}"؟`
+    : `Legacy clinic data is not assigned to a clinic. Move it into "${clinicName}"?`;
+  if (!window.confirm(prompt)) {
+    localStorage.removeItem(legacyStoreKey);
+    showAppMessage('Legacy clinic data was removed without importing it.');
+    return;
+  }
+  try {
+    const result = await window.rtsClinic.importLegacy(legacyState);
+    replaceState(result.state);
+    showAppMessage(result.imported
+      ? 'Legacy clinic data was moved into this clinic workspace.'
+      : 'Legacy data was not imported because this clinic already has data. The unscoped copy was removed.', !result.imported);
+  } catch (error) {
+    console.error('Legacy clinic migration failed:', error);
+    showAppMessage(errorMessage(error, 'Legacy clinic data was removed without importing it.'), true);
+  } finally {
+    localStorage.removeItem(legacyStoreKey);
+  }
+}
+
 $('loginForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   const submit = $('loginSubmit');
@@ -549,7 +1112,7 @@ $('loginForm').addEventListener('submit', async (event) => {
   submit.textContent = language === 'ar' ? 'جارٍ تسجيل الدخول…' : 'Signing in…';
   error.textContent = '';
   try {
-    const result = await window.rtsClinicAuth.login({
+    const result = await window.rtsClinic.login({
       storeId: data.get('storeId'),
       username: data.get('username'),
       password: data.get('password')
@@ -559,15 +1122,23 @@ $('loginForm').addEventListener('submit', async (event) => {
       return;
     }
     currentUser = result.user;
-    $('signedInUser').textContent = `${result.store?.name || data.get('storeId')} · ${result.user.name} · ${result.user.role === 'admin' ? 'Admin' : 'Staff'}`;
+    currentClinic = result.clinic;
+    replaceState(await window.rtsClinic.load());
+    $('signedInUser').textContent = `${result.clinic?.name || data.get('storeId')} · ${result.user.name} · ${tr(result.user.role === 'admin' ? 'Admin' : 'Staff')}`;
     document.querySelectorAll('.admin-only').forEach((element) => {
       element.classList.toggle('hidden', result.user.role !== 'admin');
     });
     $('login').classList.add('hidden');
     $('app').classList.remove('hidden');
-    renderAll();
-  } catch {
-    error.textContent = tr('Unable to sign in to RTS Clinic.');
+    showAppMessage('');
+    await handleLegacyWorkspace();
+  } catch (loginError) {
+    console.error('Clinic sign-in failed:', loginError);
+    await window.rtsClinic.logout().catch((logoutError) => console.error('Failed to clear rejected clinic session:', logoutError));
+    currentUser = null;
+    currentClinic = null;
+    state = emptyState();
+    error.textContent = errorMessage(loginError, 'Unable to load this clinic workspace.');
   } finally {
     submit.disabled = false;
     submit.textContent = tr('Sign in');
@@ -578,74 +1149,154 @@ document.querySelectorAll('[data-page-link]').forEach((button) => button.addEven
 $('newPatient').addEventListener('click', () => openRecord('patient'));
 $('newSession').addEventListener('click', () => openRecord('session'));
 $('newPayment').addEventListener('click', () => openRecord('payment'));
-$('signOut').addEventListener('click', () => {
+$('signOut').addEventListener('click', async () => {
   if (!window.confirm(language === 'ar' ? 'هل تريد تسجيل الخروج من مساحة العيادة؟' : 'Sign out of this clinic workspace?')) return;
-  currentUser = null;
-  document.querySelectorAll('.admin-only').forEach((element) => element.classList.add('hidden'));
-  document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.page === 'dashboard'));
-  document.querySelectorAll('.page').forEach((page) => page.classList.toggle('active', page.id === 'page-dashboard'));
-  $('pageTitle').textContent = tr('Dashboard');
-  $('loginForm').reset();
-  $('loginError').textContent = '';
-  $('login').classList.remove('hidden');
-  $('app').classList.add('hidden');
-  $('loginStoreId').focus();
+  try {
+    await window.rtsClinic.logout();
+  } catch (error) {
+    console.error('Clinic logout IPC failed:', error);
+  } finally {
+    currentUser = null;
+    currentClinic = null;
+    state = emptyState();
+    localStorage.removeItem(legacyStoreKey);
+    ['recordDialog', 'sessionDialog', 'patientDialog'].forEach((id) => { if ($(id).open) $(id).close('logout'); });
+    document.querySelectorAll('.admin-only').forEach((element) => element.classList.add('hidden'));
+    document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.page === 'dashboard'));
+    document.querySelectorAll('.page').forEach((page) => page.classList.toggle('active', page.id === 'page-dashboard'));
+    $('pageTitle').textContent = tr('Dashboard');
+    $('loginForm').reset();
+    $('loginError').textContent = '';
+    $('patientSearch').value = '';
+    showAppMessage('');
+    renderAll();
+    $('login').classList.remove('hidden');
+    $('app').classList.add('hidden');
+    $('loginStoreId').focus();
+  }
 });
-$('closeRecord').addEventListener('click', () => { $('recordDialog').close('cancel'); dialogMode = ''; editingPatientId = ''; });
-$('cancelRecord').addEventListener('click', () => { $('recordDialog').close('cancel'); dialogMode = ''; editingPatientId = ''; });
+function resetRecordDialog() {
+  dialogMode = '';
+  editingPatientId = '';
+  editingPaymentId = '';
+  pendingPaymentSessionId = '';
+}
+
+$('closeRecord').addEventListener('click', () => { $('recordDialog').close('cancel'); resetRecordDialog(); });
+$('cancelRecord').addEventListener('click', () => { $('recordDialog').close('cancel'); resetRecordDialog(); });
 $('closeSession').addEventListener('click', () => $('sessionDialog').close('cancel'));
 $('closePatient').addEventListener('click', () => $('patientDialog').close('cancel'));
 $('languageToggle').addEventListener('click', toggleLanguage);
 $('languageToggleLogin').addEventListener('click', toggleLanguage);
 $('calendarPrev').addEventListener('click', () => { calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1); renderCalendar(); });
 $('calendarNext').addEventListener('click', () => { calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1); renderCalendar(); });
-$('patientSearch').addEventListener('input', renderPatients);
-$('insuranceForm').addEventListener('submit', (event) => { event.preventDefault(); const name = $('insuranceName').value.trim(); if (!name) return; state.insurance.push({ id: id('ins'), name, contact: $('insuranceContact').value.trim() }); event.target.reset(); persist(); });
-$('generateReport').addEventListener('click', () => { if (currentUser?.role !== 'admin') return; const bill = { id: id('bill'), from: $('reportFrom').value, to: $('reportTo').value, generatedAt: new Date().toISOString(), totals: totals($('reportFrom').value, $('reportTo').value) }; state.bills.push(bill); persist(); alert(`Bill generated: ${bill.id}`); });
-$('exportData').addEventListener('click', () => { if (currentUser?.role !== 'admin') return; const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `rts-clinic-${today()}.json`; link.click(); URL.revokeObjectURL(link.href); });
+const renderLocalized = (render) => {
+  render();
+  applyLanguage();
+};
+$('patientSearch').addEventListener('input', () => renderLocalized(renderPatients));
+$('sessionSearch').addEventListener('input', () => renderLocalized(renderSessions));
+$('sessionStatusFilter').addEventListener('change', () => renderLocalized(renderSessions));
+$('paymentSearch').addEventListener('input', () => renderLocalized(renderPayments));
+$('paymentMethodFilter').addEventListener('change', () => renderLocalized(renderPayments));
+$('paymentStatusFilter').addEventListener('change', () => renderLocalized(renderPayments));
+$('insuranceSearch').addEventListener('input', () => renderLocalized(renderInsurance));
+$('insuranceClaimFilter').addEventListener('change', () => renderLocalized(renderInsurance));
+$('insuranceReportProvider').addEventListener('change', () => renderLocalized(renderInsurance));
+$('insuranceFrom').addEventListener('change', () => renderLocalized(renderInsurance));
+$('insuranceTo').addEventListener('change', () => renderLocalized(renderInsurance));
+$('reportFrom').addEventListener('change', () => renderLocalized(renderReports));
+$('reportTo').addEventListener('change', () => renderLocalized(renderReports));
+$('billSearch').addEventListener('input', () => renderLocalized(renderReports));
+$('printInsuranceReport').addEventListener('click', printInsuranceReport);
+$('printRevenueReport').addEventListener('click', () => printRevenueReport());
+$('serviceForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const submit = event.submitter;
+  submit.disabled = true;
+  setInlineError('serviceError', '');
+  try {
+    await applyMutation('service-create', { service: { name: $('serviceName').value } });
+    event.target.reset();
+  } catch (error) {
+    setInlineError('serviceError', errorMessage(error, 'Unable to save changes.'), true);
+  } finally {
+    submit.disabled = false;
+  }
+});
+$('insuranceForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const submit = event.submitter;
+  setInlineError('insuranceError', '');
+  submit.disabled = true;
+  try {
+    await applyMutation('insurance-create', {
+      provider: { name: $('insuranceName').value, contact: $('insuranceContact').value }
+    });
+    event.target.reset();
+  } catch (error) {
+    setInlineError('insuranceError', errorMessage(error, 'Unable to save changes.'), true);
+  } finally {
+    submit.disabled = false;
+  }
+});
+$('generateReport').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  $('reportMessage').textContent = '';
+  $('reportMessage').classList.remove('is-error');
+  button.disabled = true;
+  try {
+    await applyMutation('bill-create', { from: $('reportFrom').value, to: $('reportTo').value });
+    $('reportMessage').textContent = tr('Bill generated successfully.');
+  } catch (error) {
+    $('reportMessage').textContent = errorMessage(error, 'Unable to save changes.');
+    $('reportMessage').classList.add('is-error');
+  } finally {
+    button.disabled = false;
+  }
+});
+$('exportData').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    const result = await window.rtsClinic.exportData();
+    if (result?.ok) showAppMessage('Data exported successfully.');
+  } catch (error) {
+    showAppMessage(errorMessage(error, 'Unable to save changes.'), true);
+  } finally {
+    button.disabled = false;
+  }
+});
 $('recordForm').addEventListener('submit', async (event) => {
   event.preventDefault();
+  const submit = event.submitter;
+  submit.disabled = true;
+  setInlineError('recordError', '');
   const data = Object.fromEntries(new FormData(event.target).entries());
-  if (dialogMode === 'patient') {
-    const existing = editingPatientId ? patientById(editingPatientId) : null;
-    const image = data.photo;
-    delete data.photo;
-    data.criticalAlerts = event.target.querySelectorAll('[name="criticalAlerts"]:checked').length
-      ? Array.from(event.target.querySelectorAll('[name="criticalAlerts"]:checked')).map((input) => input.value)
-      : [];
-    try {
-      data.photo = image instanceof File && image.size ? await imageDataForStorage(image) : existing?.photo || '';
-    } catch (error) {
-      alert(error.message);
-      return;
+  try {
+    if (dialogMode === 'patient') {
+      const existing = editingPatientId ? patientById(editingPatientId) : null;
+      data.criticalAlerts = Array.from(event.target.querySelectorAll('[name="criticalAlerts"]:checked')).map((input) => input.value);
+      data.id = existing?.id || '';
+      await applyMutation('patient-upsert', { patient: data });
     }
-    data.fullName = data.fullName.trim().replace(/\s+/g, ' ');
-    data.name = data.fullName;
-    if (existing) Object.assign(existing, data);
-    else state.patients.push({ id: id('patient'), ...data });
+    let savedSessionId = '';
+    if (dialogMode === 'session') {
+      const nextState = await applyMutation('session-create', { session: data });
+      savedSessionId = nextState.sessions.at(-1)?.id || '';
+    }
+    if (dialogMode === 'payment') {
+      data.id = editingPaymentId;
+      await applyMutation(editingPaymentId ? 'payment-update' : 'payment-create', { payment: data });
+    }
+    $('recordDialog').close('saved');
+    resetRecordDialog();
+    if (savedSessionId) openSessionDetails(savedSessionId);
+  } catch (error) {
+    setInlineError('recordError', errorMessage(error, 'Unable to save changes.'), true);
+  } finally {
+    submit.disabled = false;
   }
-  if (dialogMode === 'session') state.sessions.push({ id: id('session'), ...data, status: 'open', amount: null });
-  if (dialogMode === 'payment') {
-    const session = sessionById(data.sessionId);
-    const amount = Number(data.amount);
-    if (!session || session.status !== 'closed' || amount <= 0 || amount > Number(session.amount) - sessionCommitted(session.id) + 0.005) {
-      alert('Payment must belong to a closed session and cannot exceed the amount still to allocate.');
-      return;
-    }
-    if (data.method === 'insurance' && !data.insuranceId) {
-      alert('Select an insurance provider for insurance payments.');
-      return;
-    }
-    if (data.method !== 'insurance' && data.status !== 'paid') {
-      alert('Cash and debit payments must be recorded as paid. Use an insurance payment for a submitted claim.');
-      return;
-    }
-    state.payments.push({ id: id('payment'), ...data, patientId: session.patientId, amount });
-  }
-  $('recordDialog').close('saved');
-  dialogMode = '';
-  editingPatientId = '';
-  persist();
 });
 document.addEventListener('click', (event) => {
   const sessionTarget = event.target.closest('[data-session-id]');
@@ -654,8 +1305,119 @@ document.addEventListener('click', (event) => {
   if (patientTarget) openPatientDetails(patientTarget.dataset.patientId);
   const paymentTarget = event.target.closest('[data-record-payment]');
   if (paymentTarget) { $('sessionDialog').close('cancel'); openRecord('payment', paymentTarget.dataset.recordPayment); }
+  const paymentRow = event.target.closest('[data-payment-id]');
+  if (paymentRow && !paymentTarget) {
+    const payment = state.payments.find((item) => item.id === paymentRow.dataset.paymentId);
+    if (payment) {
+      if ($('sessionDialog').open) $('sessionDialog').close('cancel');
+      openRecord('payment', payment.sessionId, payment.id);
+    }
+  }
   const editPatientTarget = event.target.closest('[data-edit-patient]');
   if (editPatientTarget) { $('patientDialog').close('cancel'); openRecord('patient', editPatientTarget.dataset.editPatient); }
+  const printSessionTarget = event.target.closest('[data-print-session]');
+  if (printSessionTarget) printSessionReceipt(printSessionTarget.dataset.printSession);
+  const printReceiptsTarget = event.target.closest('[data-print-patient-receipts]');
+  if (printReceiptsTarget) printPatientReceipts(printReceiptsTarget.dataset.printPatientReceipts);
+  const printFinanceTarget = event.target.closest('[data-print-patient-finance]');
+  if (printFinanceTarget) printPatientFinancialReport(printFinanceTarget.dataset.printPatientFinance);
+  const printSessionsTarget = event.target.closest('[data-print-patient-sessions]');
+  if (printSessionsTarget) printPatientSessionReport(printSessionsTarget.dataset.printPatientSessions);
+  const printBillTarget = event.target.closest('[data-print-bill]');
+  if (printBillTarget) {
+    const bill = state.bills.find((item) => item.id === printBillTarget.dataset.printBill);
+    if (bill) printRevenueReport(bill);
+  }
+  const deleteServiceTarget = event.target.closest('[data-delete-service]');
+  if (deleteServiceTarget && window.confirm(tr('Delete this clinic service?'))) {
+    deleteServiceTarget.disabled = true;
+    applyMutation('service-delete', { serviceId: deleteServiceTarget.dataset.deleteService })
+      .catch((error) => showAppMessage(errorMessage(error, 'Unable to save changes.'), true))
+      .finally(() => { deleteServiceTarget.disabled = false; });
+  }
+  const filePicker = event.target.closest('[data-file-picker]');
+  if (filePicker) $(filePicker.dataset.filePicker)?.click();
+  const downloadTarget = event.target.closest('[data-file-download]');
+  if (downloadTarget) {
+    setInlineError(downloadTarget.dataset.fileError, '');
+    downloadTarget.disabled = true;
+    window.rtsClinic.files.download(downloadTarget.dataset.fileDownload)
+      .catch((error) => setInlineError(downloadTarget.dataset.fileError, errorMessage(error, 'Unable to download this medical file.')))
+      .finally(() => { downloadTarget.disabled = false; });
+  }
+  const deleteTarget = event.target.closest('[data-file-delete]');
+  if (deleteTarget && window.confirm(tr('Delete this medical file permanently?'))) {
+    setInlineError(deleteTarget.dataset.fileError, '');
+    deleteTarget.disabled = true;
+    window.rtsClinic.files.delete(deleteTarget.dataset.fileDelete)
+      .then(() => renderMedicalFiles(deleteTarget.dataset.recordType, deleteTarget.dataset.recordId, deleteTarget.dataset.fileList, deleteTarget.dataset.fileError))
+      .catch((error) => setInlineError(deleteTarget.dataset.fileError, errorMessage(error, 'Unable to delete this medical file.')))
+      .finally(() => { deleteTarget.disabled = false; });
+  }
+});
+
+['recordDialog', 'sessionDialog', 'patientDialog'].forEach((id) => {
+  const dialog = $(id);
+  dialog.addEventListener('click', (event) => {
+    if (event.target !== dialog) return;
+    const rect = dialog.getBoundingClientRect();
+    const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+    if (!inside) dialog.close('outside');
+  });
+  dialog.addEventListener('cancel', () => {
+    if (id === 'recordDialog') resetRecordDialog();
+  });
+  dialog.addEventListener('close', () => {
+    if (id === 'recordDialog') resetRecordDialog();
+  });
+});
+
+let lastKeyboardTarget = null;
+document.addEventListener('focusin', (event) => {
+  if (event.target.matches('input,select,textarea,button,[tabindex]')) lastKeyboardTarget = event.target;
+});
+function recoverKeyboardFocus() {
+  window.requestAnimationFrame(() => {
+    const openDialog = document.querySelector('dialog[open]');
+    const candidate = lastKeyboardTarget?.isConnected && !lastKeyboardTarget.disabled && lastKeyboardTarget.getClientRects().length
+      ? lastKeyboardTarget
+      : openDialog?.querySelector('input:not([disabled]),select:not([disabled]),textarea:not([disabled]),button:not([disabled])')
+        || (!$('login').classList.contains('hidden') ? $('loginStoreId') : document.querySelector('.page.active input, .page.active button'));
+    candidate?.focus({ preventScroll: true });
+  });
+}
+window.addEventListener('focus', recoverKeyboardFocus);
+window.rtsClinic.onWindowActivated(recoverKeyboardFocus);
+document.addEventListener('change', async (event) => {
+  const input = event.target.closest('[data-file-upload]');
+  if (!input || !input.files?.length) return;
+  const file = input.files[0];
+  setInlineError(input.dataset.fileError, '');
+  input.disabled = true;
+  const picker = document.querySelector(`[data-file-picker="${input.id}"]`);
+  if (picker) {
+    picker.disabled = true;
+    picker.classList.add('is-loading');
+  }
+  try {
+    await window.rtsClinic.files.upload({
+      recordType: input.dataset.recordType,
+      recordId: input.dataset.recordId,
+      originalName: file.name,
+      mimeType: file.type,
+      bytes: new Uint8Array(await file.arrayBuffer())
+    });
+    await renderMedicalFiles(input.dataset.recordType, input.dataset.recordId, input.dataset.fileList, input.dataset.fileError);
+  } catch (error) {
+    setInlineError(input.dataset.fileError, errorMessage(error, 'Unable to upload this medical file.'));
+  } finally {
+    input.value = '';
+    input.disabled = false;
+    if (picker) {
+      picker.disabled = false;
+      picker.classList.remove('is-loading');
+    }
+  }
 });
 applyLanguage();
 renderAll();
