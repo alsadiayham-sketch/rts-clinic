@@ -11,8 +11,8 @@ const {
 } = require('../src/clinic-storage');
 
 const testRoot = path.join(__dirname, '.data');
-const admin = { role: 'admin', userId: 'admin-1' };
-const staff = { role: 'staff', userId: 'staff-1' };
+const admin = { role: 'admin', userId: 'admin-1', userName: 'Clinic Admin' };
+const staff = { role: 'staff', userId: 'staff-1', userName: 'Clinic Staff' };
 
 before(async () => fs.rm(testRoot, { recursive: true, force: true }));
 after(async () => fs.rm(testRoot, { recursive: true, force: true }));
@@ -68,6 +68,7 @@ test('enforces admin-only payment mutations in the persistence layer', async () 
   });
   await storage.mutate('clinic-a', staff, 'session-close', {
     sessionId: state.sessions[0].id,
+    expectedRevision: state.sessions[0].revision,
     amount: 100
   });
 
@@ -153,6 +154,7 @@ test('tracks partial insurance settlement without clearing the outstanding balan
   });
   state = await storage.mutate('clinic-a', staff, 'session-close', {
     sessionId: state.sessions[0].id,
+    expectedRevision: state.sessions[0].revision,
     amount: 200
   });
   state = await storage.mutate('clinic-a', admin, 'insurance-create', {
@@ -188,7 +190,9 @@ test('tracks partial insurance settlement without clearing the outstanding balan
       insuranceAmount: 170,
       settledAmount: 170,
       status: 'paid'
-    }
+    },
+    expectedRevision: state.payments[0].revision,
+    changeReason: 'Insurance company settled the claim.'
   });
   assert.equal(state.payments[0].settledAmount, 170);
   assert.equal(state.payments[0].status, 'paid');
@@ -209,6 +213,7 @@ test('persists generated bill summaries for later listing and printing', async (
   });
   state = await storage.mutate('clinic-a', staff, 'session-close', {
     sessionId: state.sessions[0].id,
+    expectedRevision: state.sessions[0].revision,
     amount: 150
   });
   await storage.mutate('clinic-a', admin, 'bill-create', {
@@ -224,4 +229,145 @@ test('persists generated bill summaries for later listing and printing', async (
     received: 0,
     outstanding: 150
   });
+});
+
+test('preserves immutable patient, session, and payment versions with before and after snapshots', async () => {
+    const storage = new ClinicStorage(path.join(testRoot, 'audit-history'));
+    let state = await storage.mutate('clinic-a', staff, 'patient-upsert', {
+      patient: { fullName: 'Patient A', phone: '0500000000' }
+    });
+    const patient = state.patients[0];
+    state = await storage.mutate('clinic-a', staff, 'patient-upsert', {
+      patient: { ...patient, phone: '0501111111' },
+      expectedRevision: patient.revision,
+      changeReason: 'Patient provided a new phone number.'
+    });
+    assert.equal(state.patients[0].revision, 2);
+
+    state = await storage.mutate('clinic-a', staff, 'session-create', {
+      session: {
+        patientId: state.patients[0].id,
+        date: '2026-10-08',
+        time: '09:30',
+        service: 'Consultation',
+        note: 'Initial note'
+      }
+    });
+    let clinicalSession = state.sessions[0];
+    state = await storage.mutate('clinic-a', staff, 'session-update', {
+      session: { ...clinicalSession, note: 'Corrected clinical note' },
+      expectedRevision: clinicalSession.revision,
+      changeReason: 'Corrected the visit summary.'
+    });
+    clinicalSession = state.sessions[0];
+    state = await storage.mutate('clinic-a', staff, 'session-close', {
+      sessionId: clinicalSession.id,
+      expectedRevision: clinicalSession.revision,
+      amount: 120,
+      closingNote: 'Completed'
+    });
+
+    state = await storage.mutate('clinic-a', admin, 'payment-create', {
+      payment: {
+        sessionId: state.sessions[0].id,
+        date: '2026-10-08',
+        amount: 120,
+        method: 'cash',
+        status: 'paid'
+      }
+    });
+    const payment = state.payments[0];
+    state = await storage.mutate('clinic-a', admin, 'payment-update', {
+      payment: { ...payment, date: '2026-10-09' },
+      expectedRevision: payment.revision,
+      changeReason: 'Corrected the receipt date.'
+    });
+
+    const patientEdit = state.auditLog.find((entry) => entry.entityType === 'patient' && entry.action === 'updated');
+    assert.equal(patientEdit.before.phone, '0500000000');
+    assert.equal(patientEdit.after.phone, '0501111111');
+    assert.equal(patientEdit.reason, 'Patient provided a new phone number.');
+    assert.equal(patientEdit.changedByName, 'Clinic Staff');
+
+    const sessionVersions = state.auditLog.filter((entry) => entry.entityType === 'session');
+    assert.deepEqual(sessionVersions.map((entry) => entry.version), [1, 2, 3]);
+    assert.equal(sessionVersions[1].before.note, 'Initial note');
+    assert.equal(sessionVersions[1].after.note, 'Corrected clinical note');
+
+    const paymentEdit = state.auditLog.find((entry) => entry.entityType === 'payment' && entry.action === 'updated');
+    assert.equal(paymentEdit.before.date, '2026-10-08');
+    assert.equal(paymentEdit.after.date, '2026-10-09');
+    assert.equal(paymentEdit.version, 2);
+
+    const reloaded = await storage.load('clinic-a');
+    assert.deepEqual(reloaded.auditLog, state.auditLog);
+});
+
+test('rejects stale edits and unsafe closed-session financial corrections', async () => {
+    const storage = new ClinicStorage(path.join(testRoot, 'version-conflicts'));
+    let state = await storage.mutate('clinic-a', staff, 'patient-upsert', {
+      patient: { fullName: 'Patient A' }
+    });
+    const stalePatient = { ...state.patients[0] };
+    state = await storage.mutate('clinic-a', staff, 'patient-upsert', {
+      patient: { ...stalePatient, phone: '0500000000' },
+      expectedRevision: stalePatient.revision,
+      changeReason: 'Added phone.'
+    });
+    await assert.rejects(
+      storage.mutate('clinic-a', staff, 'patient-upsert', {
+        patient: { ...stalePatient, phone: '0509999999' },
+        expectedRevision: stalePatient.revision,
+        changeReason: 'Stale edit.'
+      }),
+      /changed after you opened/
+    );
+
+    state = await storage.mutate('clinic-a', staff, 'session-create', {
+      session: {
+        patientId: state.patients[0].id,
+        date: '2026-10-08',
+        time: '10:00',
+        service: 'Consultation'
+      }
+    });
+    state = await storage.mutate('clinic-a', staff, 'session-close', {
+      sessionId: state.sessions[0].id,
+      expectedRevision: state.sessions[0].revision,
+      amount: 200
+    });
+    state = await storage.mutate('clinic-a', admin, 'payment-create', {
+      payment: {
+        sessionId: state.sessions[0].id,
+        date: '2026-10-08',
+        amount: 150,
+        method: 'cash',
+        status: 'paid'
+      }
+    });
+
+    await assert.rejects(
+      storage.mutate('clinic-a', staff, 'session-update', {
+        session: { ...state.sessions[0], amount: 180 },
+        expectedRevision: state.sessions[0].revision,
+        changeReason: 'Staff correction.'
+      }),
+      /administrators/
+    );
+    await assert.rejects(
+      storage.mutate('clinic-a', staff, 'session-update', {
+        session: { ...state.sessions[0], date: '2026-11-15' },
+        expectedRevision: state.sessions[0].revision,
+        changeReason: 'Move historical revenue.'
+      }),
+      /date, time, or service/
+    );
+    await assert.rejects(
+      storage.mutate('clinic-a', admin, 'session-update', {
+        session: { ...state.sessions[0], amount: 100 },
+        expectedRevision: state.sessions[0].revision,
+        changeReason: 'Invalid correction.'
+      }),
+      /cannot be lower/
+    );
 });

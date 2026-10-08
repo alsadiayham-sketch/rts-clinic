@@ -267,7 +267,31 @@ const translations = {
   'Thu': 'الخميس',
   'Fri': 'الجمعة',
   'Sat': 'السبت',
-  'Sun': 'الأحد'
+  'Sun': 'الأحد',
+  'Version history': 'سجل الإصدارات',
+  'History': 'السجل',
+  'Edit session': 'تعديل الجلسة',
+  'Edit payment': 'تعديل الدفعة',
+  'Change reason': 'سبب التعديل',
+  'Explain why this record is being changed': 'اشرح سبب تعديل هذا السجل',
+  'A reason is required and will be saved in the permanent history.': 'السبب مطلوب وسيُحفظ في السجل الدائم.',
+  'Last updated': 'آخر تحديث',
+  'Created': 'تم الإنشاء',
+  'Updated': 'تم التعديل',
+  'Closed session': 'تم إغلاق الجلسة',
+  'No version history found.': 'لم يتم العثور على سجل إصدارات.',
+  'No field values changed.': 'لم تتغير قيم الحقول.',
+  'Before and after snapshots': 'لقطات ما قبل وبعد',
+  'Before': 'قبل',
+  'After': 'بعد',
+  'Version': 'الإصدار',
+  'This record changed after you opened it. Reopen it and review the latest version before saving again.': 'تم تعديل هذا السجل بعد فتحه. أعد فتحه وراجع أحدث إصدار قبل الحفظ مرة أخرى.',
+  'Enter a reason for this change.': 'أدخل سبب هذا التعديل.',
+  'Only clinic administrators can change a closed session amount.': 'يمكن لمديري العيادة فقط تغيير مبلغ الجلسة المغلقة.',
+  'Only clinic administrators can change the date, time, or service of a closed session.': 'يمكن لمديري العيادة فقط تغيير تاريخ أو وقت أو خدمة الجلسة المغلقة.',
+  'The session amount cannot be lower than payments and active insurance claims.': 'لا يمكن أن يكون مبلغ الجلسة أقل من الدفعات ومطالبات التأمين النشطة.',
+  'Final amount': 'المبلغ النهائي',
+  'Record details': 'تفاصيل السجل'
 };
 const reverseTranslations = Object.fromEntries(Object.entries(translations).map(([english, arabic]) => [arabic, english]));
 const tr = (value) => language === 'ar' ? (translations[value] || value) : (reverseTranslations[value] || value);
@@ -311,6 +335,7 @@ const emptyState = () => ({
   services: [],
   bills: [],
   medicalFiles: [],
+  auditLog: [],
   settings: { nextPatientSequence: 1 }
 });
 let state = emptyState();
@@ -319,6 +344,7 @@ let dialogMode = '';
 let pendingPaymentSessionId = '';
 let editingPaymentId = '';
 let editingPatientId = '';
+let editingSessionId = '';
 let calendarDate = new Date();
 let currentUser = null;
 let currentClinic = null;
@@ -338,6 +364,12 @@ const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':
 const patientById = (patientId) => state.patients.find((patient) => patient.id === patientId);
 const patientName = (patientId) => patientId === 'guest' ? 'Guest / unidentified' : patientById(patientId)?.fullName || patientById(patientId)?.name || 'Unknown patient';
 const sessionById = (sessionId) => state.sessions.find((session) => session.id === sessionId);
+const localizedDateTime = (value) => value ? new Date(value).toLocaleString(language === 'ar' ? 'ar' : 'en') : '';
+const revisionMetadata = (record) => {
+  if (!record) return '';
+  const actor = record.updatedByName || record.updatedBy || record.createdByName || record.createdBy || tr('Clinic user');
+  return `${tr('Version')} ${Number(record.revision || 1)} · ${tr('Last updated')} ${esc(localizedDateTime(record.updatedAt || record.createdAt))} · ${esc(actor)}`;
+};
 const ageFromDob = (dateOfBirth) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth || '')) return '';
   const birth = new Date(`${dateOfBirth}T00:00:00`);
@@ -737,7 +769,7 @@ function outstandingSessions(includeSessionId = '') {
   ));
 }
 
-function setupPatientPicker() {
+function setupPatientPicker(existingSession = null) {
   const input = $('patientPickerInput');
   const hidden = $('patientPickerValue');
   const results = $('patientPickerResults');
@@ -750,6 +782,21 @@ function setupPatientPicker() {
       .slice(0, 12);
     results.innerHTML = patients.map((patient) => `<button type="button" class="typeahead-option" data-patient-choice="${esc(patient.id)}"><span><strong>${esc(patientName(patient.id))}</strong><small>${esc(patient.fileNumber || '')} · ${esc(patient.phone || '')}</small></span></button>`).join('');
   };
+  const selectPatient = (patientId) => {
+    if (patientId === 'guest') {
+      hidden.value = 'guest';
+      input.value = tr('Guest / unidentified');
+      note.textContent = tr('Selected');
+      results.innerHTML = '';
+      return;
+    }
+    const patient = patientById(patientId);
+    if (!patient) return;
+    hidden.value = patient.id;
+    input.value = patientName(patient.id);
+    note.textContent = `${tr('Selected')}: ${patient.fileNumber || patientName(patient.id)}`;
+    results.innerHTML = '';
+  };
   input.addEventListener('input', () => {
     hidden.value = '';
     note.textContent = '';
@@ -759,24 +806,20 @@ function setupPatientPicker() {
   results.addEventListener('click', (event) => {
     const choice = event.target.closest('[data-patient-choice]');
     if (!choice) return;
-    const patient = patientById(choice.dataset.patientChoice);
-    hidden.value = patient.id;
-    input.value = patientName(patient.id);
-    note.textContent = `${tr('Selected')}: ${patient.fileNumber || patientName(patient.id)}`;
-    results.innerHTML = '';
+    selectPatient(choice.dataset.patientChoice);
   });
-  $('useGuest')?.addEventListener('click', () => {
-    hidden.value = 'guest';
-    input.value = tr('Guest / unidentified');
-    note.textContent = tr('Selected');
-    results.innerHTML = '';
-  });
+  $('useGuest')?.addEventListener('click', () => selectPatient('guest'));
+  if (existingSession?.patientId) selectPatient(existingSession.patientId);
 }
 
 function setupServicePicker() {
   const input = $('servicePickerInput');
   const results = $('servicePickerResults');
   if (!input || !results) return;
+  if (input.readOnly) {
+    results.remove();
+    return;
+  }
   const render = () => {
     const query = input.value.trim().toLowerCase();
     results.innerHTML = state.services
@@ -855,6 +898,60 @@ function setupSessionPicker(existingPayment) {
   else if (pendingPaymentSessionId) selectSession(pendingPaymentSessionId);
 }
 
+function recordVersionPanel(entityType, record) {
+  if (!record?.id) return '';
+  return `<div class="record-version"><p><strong>${tr('Version')} ${Number(record.revision || 1)}</strong><small>${revisionMetadata(record)}</small></p><button type="button" class="secondary" data-history-type="${esc(entityType)}" data-history-id="${esc(record.id)}">${tr('History')}</button></div>`;
+}
+
+function changeReasonField() {
+  return `<label class="change-reason"><span>${tr('Change reason')}</span><textarea name="changeReason" required maxlength="500" placeholder="${tr('Explain why this record is being changed')}"></textarea><small>${tr('A reason is required and will be saved in the permanent history.')}</small></label>`;
+}
+
+function sessionForm(session) {
+  const lockedPatient = session?.status === 'closed';
+  const lockedStructure = session?.status === 'closed' && currentUser?.role !== 'admin';
+  const patientField = lockedPatient
+    ? `<label class="full-width">${tr('Patient')}<input value="${esc(patientName(session.patientId))}" readonly><input name="patientId" type="hidden" value="${esc(session.patientId)}"></label>`
+    : `<div class="typeahead full-width"><span>${tr('Patient')}</span><div class="typeahead-input-row"><input id="patientPickerInput" type="search" autocomplete="off" placeholder="${tr('Search patients while typing')}" role="combobox" aria-controls="patientPickerResults"><button id="useGuest" class="secondary" type="button">${tr('Use guest')}</button></div><input id="patientPickerValue" name="patientId" type="hidden" required><p id="patientPickerSelection" class="selection-note"></p><div id="patientPickerResults" class="typeahead-results" role="listbox"></div></div>`;
+  const closedAmount = session?.status === 'closed'
+    ? `<label>${tr('Final amount')}<div class="date-with-age"><span class="currency-mark" aria-hidden="true">₪</span><input name="amount" type="number" min="0.01" step="0.01" value="${esc(session.amount || '')}"${currentUser?.role === 'admin' ? '' : ' readonly'}></div></label><label>${tr('Closing note')}<textarea name="closingNote">${esc(session.closingNote || '')}</textarea></label>`
+    : '';
+  return `${recordVersionPanel('session', session)}${patientField}<label>Date<input name="date" type="date" value="${esc(session?.date || today())}" required${lockedStructure ? ' readonly' : ''}></label><label>Time<input name="time" type="time" value="${esc(session?.time || currentTime())}" required${lockedStructure ? ' readonly' : ''}></label><div class="typeahead full-width"><span>${tr('Service')}</span><input id="servicePickerInput" name="service" autocomplete="off" value="${esc(session?.service || '')}" placeholder="${tr('Search or enter a service')}" required role="combobox" aria-controls="servicePickerResults"${lockedStructure ? ' readonly' : ''}><p class="field-help">${tr(lockedStructure ? 'Only clinic administrators can change the date, time, or service of a closed session.' : 'Choose a saved service or keep typing to use free text.')}</p><div id="servicePickerResults" class="typeahead-results" role="listbox"></div></div><label class="full-width">Treatment / procedure<textarea name="treatment" placeholder="What was done during this visit?">${esc(session?.treatment || '')}</textarea></label><label class="full-width">Session note<textarea name="note">${esc(session?.note || '')}</textarea></label><label>Follow-up date<input name="followUpDate" type="date" value="${esc(session?.followUpDate || session?.followUp || '')}"></label><label>Follow-up time<input name="followUpTime" type="time" value="${esc(session?.followUpTime || '')}"></label>${closedAmount}${session ? changeReasonField() : ''}`;
+}
+
+function historyLabel(key) {
+  return tr(key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (character) => character.toUpperCase()));
+}
+
+function historyValue(value) {
+  if (value === null || value === undefined || value === '') return tr('Not recorded');
+  if (Array.isArray(value)) return value.length ? value.map((item) => tr(String(item))).join(', ') : tr('Not recorded');
+  if (typeof value === 'object') return JSON.stringify(value);
+  return tr(String(value));
+}
+
+function openHistory(entityType, entityId) {
+  const entries = state.auditLog
+    .filter((entry) => entry.entityType === entityType && entry.entityId === entityId)
+    .slice()
+    .reverse();
+  const record = entityType === 'patient' ? patientById(entityId) : entityType === 'session' ? sessionById(entityId) : state.payments.find((payment) => payment.id === entityId);
+  const title = entityType === 'patient' ? patientName(entityId) : entityType === 'session' ? sessionLabel(entityId) : sessionLabel(record?.sessionId);
+  $('historySubtitle').textContent = `${tr(entityType[0].toUpperCase() + entityType.slice(1))} · ${title}`;
+  const ignored = new Set(['id', 'revision', 'createdAt', 'createdBy', 'createdByName', 'updatedAt', 'updatedBy', 'updatedByName']);
+  $('historyDetails').innerHTML = entries.map((entry, index) => {
+    const before = entry.before || {};
+    const after = entry.after || {};
+    const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])]
+      .filter((key) => !ignored.has(key) && JSON.stringify(before[key]) !== JSON.stringify(after[key]));
+    const changes = keys.map((key) => `<div class="version-change"><strong>${esc(historyLabel(key))}</strong><span class="version-value version-old">${esc(historyValue(before[key]))}</span><span class="version-arrow" aria-hidden="true">→</span><span class="version-value version-new">${esc(historyValue(after[key]))}</span></div>`).join('');
+    const action = entry.action === 'created' ? tr('Created') : entry.action === 'closed' ? tr('Closed session') : tr('Updated');
+    return `<details class="version-entry"${index === 0 ? ' open' : ''}><summary><div><h3>${esc(action)}</h3><p>${esc(localizedDateTime(entry.changedAt))} · ${esc(entry.changedByName || entry.changedBy || tr('Clinic user'))}${entry.reason ? ` · ${esc(entry.reason)}` : ''}</p></div><span class="version-badge">${tr('Version')} ${Number(entry.version || 1)}</span></summary><div class="version-body"><div class="version-diff">${changes || `<p class="muted">${tr('No field values changed.')}</p>`}</div><details class="version-snapshots"><summary>${tr('Before and after snapshots')}</summary><h4>${tr('Before')}</h4><pre>${esc(JSON.stringify(before, null, 2))}</pre><h4>${tr('After')}</h4><pre>${esc(JSON.stringify(after, null, 2))}</pre></details></div></details>`;
+  }).join('') || `<p class="muted">${tr('No version history found.')}</p>`;
+  applyLanguage();
+  if (!$('historyDialog').open) $('historyDialog').showModal();
+}
+
 function openRecord(type, recordId = '', paymentId = '') {
   if (type === 'payment' && currentUser?.role !== 'admin') {
     showAppMessage('Only clinic administrators can manage payments.', true);
@@ -871,16 +968,18 @@ function openRecord(type, recordId = '', paymentId = '') {
   pendingPaymentSessionId = type === 'payment' ? recordId : '';
   editingPaymentId = existingPayment?.id || '';
   editingPatientId = type === 'patient' ? recordId : '';
+  editingSessionId = type === 'session' ? recordId : '';
   const patient = type === 'patient' && recordId ? patientById(recordId) : null;
+  const existingSession = type === 'session' && recordId ? sessionById(recordId) : null;
   const providerOptions = state.insurance.map((provider) => `<option value="${esc(provider.id)}"${existingPayment?.insuranceId === provider.id ? ' selected' : ''}>${esc(provider.name)}</option>`).join('');
   const fields = {
-    patient: patientForm(patient),
-    session: `<div class="typeahead full-width"><span>${tr('Patient')}</span><div class="typeahead-input-row"><input id="patientPickerInput" type="search" autocomplete="off" placeholder="${tr('Search patients while typing')}" role="combobox" aria-controls="patientPickerResults"><button id="useGuest" class="secondary" type="button">${tr('Use guest')}</button></div><input id="patientPickerValue" name="patientId" type="hidden" required><p id="patientPickerSelection" class="selection-note"></p><div id="patientPickerResults" class="typeahead-results" role="listbox"></div></div><label>Date<input name="date" type="date" value="${today()}" required></label><label>Time<input name="time" type="time" value="${currentTime()}" required></label><div class="typeahead full-width"><span>${tr('Service')}</span><input id="servicePickerInput" name="service" autocomplete="off" placeholder="${tr('Search or enter a service')}" required role="combobox" aria-controls="servicePickerResults"><p class="field-help">${tr('Choose a saved service or keep typing to use free text.')}</p><div id="servicePickerResults" class="typeahead-results" role="listbox"></div></div><label class="full-width">Treatment / procedure<textarea name="treatment" placeholder="What was done during this visit?"></textarea></label><label class="full-width">Session note<textarea name="note"></textarea></label><label>Follow-up date<input name="followUpDate" type="date"></label><label>Follow-up time<input name="followUpTime" type="time"></label>`,
-    payment: `<div class="typeahead full-width"><span>${tr('Session')}</span><input id="sessionPickerInput" type="search" autocomplete="off" placeholder="${tr('Search closed sessions while typing')}" role="combobox" aria-controls="sessionPickerResults"><input id="sessionPickerValue" name="sessionId" type="hidden" required><p id="sessionPickerSelection" class="selection-note"></p><div id="sessionPickerResults" class="typeahead-results" role="listbox"></div></div><label>Date<input name="date" type="date" value="${esc(existingPayment?.date || today())}" required></label><label>Method<select id="paymentMethod" name="method"><option value="cash"${existingPayment?.method === 'cash' ? ' selected' : ''}>Cash</option><option value="debit"${existingPayment?.method === 'debit' ? ' selected' : ''}>Debit card</option><option value="insurance"${existingPayment?.method === 'insurance' ? ' selected' : ''}>Insurance</option></select></label><div id="directPaymentFields" class="conditional-fields"><label>Amount<input id="paymentAmount" name="amount" type="number" min="0.01" step="0.01" value="${esc(existingPayment?.method !== 'insurance' ? existingPayment?.amount || '' : '')}" required></label><input name="status" type="hidden" value="paid"></div><div id="insurancePaymentFields" class="conditional-fields hidden"><label>Insurance provider<select id="paymentInsuranceId" name="insuranceId" required><option value="">Select provider</option>${providerOptions}</select></label><label>Participation fee<input name="participationFee" type="number" min="0" step="0.01" value="${esc(existingPayment?.participationFee || 0)}" required></label><label>Insurance amount<input id="insuranceAmount" name="insuranceAmount" type="number" min="0.01" step="0.01" value="${esc(existingPayment?.insuranceAmount || '')}" required></label><label>Amount received from insurer<input name="settledAmount" type="number" min="0" step="0.01" value="${esc(existingPayment?.settledAmount || 0)}" required></label><label>Settlement date<input name="settlementDate" type="date" value="${esc(existingPayment?.settlementDate || '')}"></label><label>Status<select name="status"><option value="pending"${existingPayment?.status === 'pending' ? ' selected' : ''}>Pending / claim submitted</option><option value="paid"${existingPayment?.status === 'paid' ? ' selected' : ''}>Paid</option><option value="rejected"${existingPayment?.status === 'rejected' ? ' selected' : ''}>Rejected</option></select></label></div>`
+    patient: `${recordVersionPanel('patient', patient)}${patientForm(patient)}${patient ? changeReasonField() : ''}`,
+    session: sessionForm(existingSession),
+    payment: `${recordVersionPanel('payment', existingPayment)}<div class="typeahead full-width"><span>${tr('Session')}</span><input id="sessionPickerInput" type="search" autocomplete="off" placeholder="${tr('Search closed sessions while typing')}" role="combobox" aria-controls="sessionPickerResults"><input id="sessionPickerValue" name="sessionId" type="hidden" required><p id="sessionPickerSelection" class="selection-note"></p><div id="sessionPickerResults" class="typeahead-results" role="listbox"></div></div><label>Date<input name="date" type="date" value="${esc(existingPayment?.date || today())}" required></label><label>Method<select id="paymentMethod" name="method"><option value="cash"${existingPayment?.method === 'cash' ? ' selected' : ''}>Cash</option><option value="debit"${existingPayment?.method === 'debit' ? ' selected' : ''}>Debit card</option><option value="insurance"${existingPayment?.method === 'insurance' ? ' selected' : ''}>Insurance</option></select></label><div id="directPaymentFields" class="conditional-fields"><label>Amount<input id="paymentAmount" name="amount" type="number" min="0.01" step="0.01" value="${esc(existingPayment?.method !== 'insurance' ? existingPayment?.amount || '' : '')}" required></label><input name="status" type="hidden" value="paid"></div><div id="insurancePaymentFields" class="conditional-fields hidden"><label>Insurance provider<select id="paymentInsuranceId" name="insuranceId" required><option value="">Select provider</option>${providerOptions}</select></label><label>Participation fee<input name="participationFee" type="number" min="0" step="0.01" value="${esc(existingPayment?.participationFee || 0)}" required></label><label>Insurance amount<input id="insuranceAmount" name="insuranceAmount" type="number" min="0.01" step="0.01" value="${esc(existingPayment?.insuranceAmount || '')}" required></label><label>Amount received from insurer<input name="settledAmount" type="number" min="0" step="0.01" value="${esc(existingPayment?.settledAmount || 0)}" required></label><label>Settlement date<input name="settlementDate" type="date" value="${esc(existingPayment?.settlementDate || '')}"></label><label>Status<select name="status"><option value="pending"${existingPayment?.status === 'pending' ? ' selected' : ''}>Pending / claim submitted</option><option value="paid"${existingPayment?.status === 'paid' ? ' selected' : ''}>Paid</option><option value="rejected"${existingPayment?.status === 'rejected' ? ' selected' : ''}>Rejected</option></select></label></div>${existingPayment ? changeReasonField() : ''}`
   };
   $('dialogTitle').textContent = type === 'patient'
     ? (patient ? 'Edit patient record' : 'Add patient')
-    : type === 'session' ? 'Add session' : existingPayment ? 'Adjust payment' : 'Record payment';
+    : type === 'session' ? (existingSession ? 'Edit session' : 'Add session') : existingPayment ? 'Edit payment' : 'Record payment';
   $('dialogFields').innerHTML = fields[type];
   applyLanguage();
   $('recordDialog').showModal();
@@ -891,7 +990,7 @@ function openRecord(type, recordId = '', paymentId = '') {
     });
   }
   if (type === 'session') {
-    setupPatientPicker();
+    setupPatientPicker(existingSession);
     setupServicePicker();
   }
   if (type === 'payment') {
@@ -916,7 +1015,7 @@ function openSessionDetails(sessionId) {
     return `<button type="button" class="row-card payment-row-button" data-payment-id="${esc(payment.id)}"><span>${tr(payment.method === 'debit' ? 'Debit card' : payment.method[0].toUpperCase() + payment.method.slice(1))} · ${tr(payment.status || 'paid')}</span><strong>${amountLabel}</strong></button>`;
   }).join('');
   const followUp = session.followUpDate || session.followUp;
-  $('sessionDetails').innerHTML = `<section class="detail-section"><div class="detail-grid"><div><span class="muted">Patient</span><strong>${esc(patientName(session.patientId))}</strong>${session.patientId !== 'guest' ? `<button type="button" class="link-button" data-patient-id="${esc(session.patientId)}">Open patient file</button>` : ''}</div><div><span class="muted">Date & time</span><strong>${esc(session.date)} ${esc(session.time || '')}</strong></div><div><span class="muted">Service</span><strong>${esc(session.service)}</strong></div><div><span class="muted">Status</span><strong>${tr(session.status === 'closed' ? 'Closed' : 'Open')}</strong></div></div></section><section class="detail-section"><h4>Treatment and follow-up</h4><p><strong>${esc(session.treatment || 'No treatment recorded.')}</strong></p><p class="muted">${followUp ? `${tr('Follow-up')}: ${esc(followUp)} ${esc(session.followUpTime || '')}` : tr('No follow-up date recorded.')}</p><p>${esc(session.note || 'No session note.')}</p>${session.closingNote ? `<p><strong>${tr('Closing note')}:</strong> ${esc(session.closingNote)}</p>` : ''}</section>${session.status === 'closed' ? `<section class="detail-section"><div class="history-heading"><h4>${tr('Payments')}</h4><strong class="nis-total"><span class="currency-mark" aria-hidden="true">₪</span>${money(session.amount)} <small>${tr('NIS')}</small></strong></div>${paymentRows || '<p class="muted">No payments recorded.</p>'}<div class="financial-strip"><div><span>${tr('Received')}</span><strong>${money(finance.received)}</strong></div><div><span>${tr('Claim pending')}</span><strong>${money(finance.pendingInsurance)}</strong></div><div><span>${tr('To allocate')}</span><strong>${money(finance.outstanding)}</strong></div></div><div class="detail-actions"><button type="button" class="secondary" data-print-session="${esc(session.id)}">${tr('Print receipt')}</button>${paymentAction}</div></section>` : `<section class="detail-section"><form id="closeSessionForm" class="form-grid"><label>Final session amount<input name="amount" type="number" min="0.01" step="0.01" required></label><label>Closing note<textarea name="closingNote"></textarea></label><p id="sessionActionError" class="form-error full-width" role="alert" tabindex="-1"></p><div class="dialog-actions"><button class="secondary" type="submit" value="details">Close session</button>${currentUser?.role === 'admin' ? `<button class="primary" type="submit" value="payment">${tr('Close & record payment')}</button>` : ''}</div></form></section>`}${medicalFilesSection('session', session.id, 'session')}`;
+  $('sessionDetails').innerHTML = `<section class="detail-section"><div class="detail-grid"><div><span class="muted">Patient</span><strong>${esc(patientName(session.patientId))}</strong>${session.patientId !== 'guest' ? `<button type="button" class="link-button" data-patient-id="${esc(session.patientId)}">Open patient file</button>` : ''}</div><div><span class="muted">Date & time</span><strong>${esc(session.date)} ${esc(session.time || '')}</strong></div><div><span class="muted">Service</span><strong>${esc(session.service)}</strong></div><div><span class="muted">Status</span><strong>${tr(session.status === 'closed' ? 'Closed' : 'Open')}</strong></div></div><p class="metadata-line">${revisionMetadata(session)}</p><div class="detail-actions"><button type="button" class="secondary" data-history-type="session" data-history-id="${esc(session.id)}">${tr('History')}</button><button type="button" class="primary" data-edit-session="${esc(session.id)}">${tr('Edit session')}</button></div></section><section class="detail-section"><h4>Treatment and follow-up</h4><p><strong>${esc(session.treatment || 'No treatment recorded.')}</strong></p><p class="muted">${followUp ? `${tr('Follow-up')}: ${esc(followUp)} ${esc(session.followUpTime || '')}` : tr('No follow-up date recorded.')}</p><p>${esc(session.note || 'No session note.')}</p>${session.closingNote ? `<p><strong>${tr('Closing note')}:</strong> ${esc(session.closingNote)}</p>` : ''}</section>${session.status === 'closed' ? `<section class="detail-section"><div class="history-heading"><h4>${tr('Payments')}</h4><strong class="nis-total"><span class="currency-mark" aria-hidden="true">₪</span>${money(session.amount)} <small>${tr('NIS')}</small></strong></div>${paymentRows || '<p class="muted">No payments recorded.</p>'}<div class="financial-strip"><div><span>${tr('Received')}</span><strong>${money(finance.received)}</strong></div><div><span>${tr('Claim pending')}</span><strong>${money(finance.pendingInsurance)}</strong></div><div><span>${tr('To allocate')}</span><strong>${money(finance.outstanding)}</strong></div></div><div class="detail-actions"><button type="button" class="secondary" data-print-session="${esc(session.id)}">${tr('Print receipt')}</button>${paymentAction}</div></section>` : `<section class="detail-section"><form id="closeSessionForm" class="form-grid"><label>Final session amount<input name="amount" type="number" min="0.01" step="0.01" required></label><label>Closing note<textarea name="closingNote"></textarea></label><p id="sessionActionError" class="form-error full-width" role="alert" tabindex="-1"></p><div class="dialog-actions"><button class="secondary" type="submit" value="details">Close session</button>${currentUser?.role === 'admin' ? `<button class="primary" type="submit" value="payment">${tr('Close & record payment')}</button>` : ''}</div></form></section>`}${medicalFilesSection('session', session.id, 'session')}`;
   applyLanguage();
   if (!$('sessionDialog').open) $('sessionDialog').showModal();
   renderMedicalFiles('session', session.id, 'sessionFileList', 'sessionFileError');
@@ -928,7 +1027,7 @@ function openSessionDetails(sessionId) {
     submit.disabled = true;
     setInlineError('sessionActionError', '');
     try {
-      await applyMutation('session-close', { sessionId: session.id, amount: data.amount, closingNote: data.closingNote });
+      await applyMutation('session-close', { sessionId: session.id, expectedRevision: session.revision, amount: data.amount, closingNote: data.closingNote });
       if (continueToPayment) {
         $('sessionDialog').close('payment');
         openRecord('payment', session.id);
@@ -967,7 +1066,7 @@ function openPatientDetails(patientId) {
     ? `<section class="critical-alert-box"><div class="critical-alert-heading"><span class="critical-icon" aria-hidden="true">!</span><div><strong>Critical clinical alerts</strong><small>Review before treatment</small></div></div><div class="critical-tags">${criticalAlerts.map((alert) => `<span>${esc(criticalLabels[alert] || alert)}</span>`).join('')}</div>${patient.criticalNote ? `<p>${esc(patient.criticalNote)}</p>` : ''}</section>`
     : `<section class="critical-alert-box critical-alert-box-empty"><strong>No critical alerts recorded</strong><span>Confirm this before treatment if the patient is new.</span></section>`;
   const provider = state.insurance.find((item) => item.id === patient.insuranceId);
-  $('patientDetails').innerHTML = `<div class="patient-record-heading">${patientAvatar(patient)}<div><h3>${esc(patientName(patient.id))}</h3><p class="muted">File ${esc(patient.fileNumber || 'not assigned')}${age !== null ? ` · ${age} ${tr('years')}` : ''}</p></div></div>${criticalBox}<div class="detail-grid"><div><span class="muted">Date of birth</span><strong>${recordValue(patient.dateOfBirth)}</strong></div><div><span class="muted">Gender</span><strong>${recordValue(patient.sex)}</strong></div><div><span class="muted">Phone</span><strong>${recordValue(patient.phone)}</strong></div><div><span class="muted">National ID</span><strong>${recordValue(patient.nationalId)}</strong></div><div><span class="muted">Insurance provider</span><strong>${recordValue(provider?.name)}</strong></div><div><span class="muted">Emergency contact</span><strong>${recordValue(patient.emergencyContact)}${patient.emergencyPhone ? ` · ${esc(patient.emergencyPhone)}` : ''}</strong></div><div><span class="muted">Address</span><strong>${recordValue(patient.address)}</strong></div></div><section class="medical-record"><h4>Medical record</h4><div class="detail-grid"><div><span class="muted">Allergies</span><strong>${recordValue(patient.allergies)}</strong></div><div><span class="muted">Conditions</span><strong>${recordValue(patient.conditions)}</strong></div><div><span class="muted">Medications</span><strong>${recordValue(patient.medications)}</strong></div><div><span class="muted">Clinical notes</span><strong>${recordValue(patient.medicalNotes)}</strong></div></div></section>${medicalFilesSection('patient', patient.id, 'patient')}<section class="care-history"><div class="history-heading"><h4>Previous sessions and treatments</h4><span class="pill">${sessions.length} visit${sessions.length === 1 ? '' : 's'}</span></div>${sessions.map((session) => `<button type="button" class="history-entry" data-session-id="${esc(session.id)}"><div><strong>${esc(session.date)} ${esc(session.time || '')} · ${esc(session.service)}</strong><small>${esc(session.treatment || session.note || session.closingNote || 'No treatment note.')}${session.followUpDate || session.followUp ? ` · ${tr('Follow-up')} ${esc(session.followUpDate || session.followUp)} ${esc(session.followUpTime || '')}` : ''}</small></div><span class="pill">${tr(session.status)}</span></button>`).join('') || '<p class="muted">No sessions recorded for this patient.</p>'}</section><div class="detail-actions"><button type="button" class="secondary" data-print-patient-receipts="${esc(patient.id)}">${tr('Print all receipts')}</button><button type="button" class="secondary" data-print-patient-finance="${esc(patient.id)}">${tr('Patient financial report')}</button><button type="button" class="secondary" data-print-patient-sessions="${esc(patient.id)}">${tr('Full session report')}</button><button type="button" class="primary" data-edit-patient="${esc(patient.id)}">Edit patient</button></div>`;
+  $('patientDetails').innerHTML = `<div class="patient-record-heading">${patientAvatar(patient)}<div><h3>${esc(patientName(patient.id))}</h3><p class="muted">File ${esc(patient.fileNumber || 'not assigned')}${age !== null ? ` · ${age} ${tr('years')}` : ''}</p><p class="metadata-line">${revisionMetadata(patient)}</p></div></div>${criticalBox}<div class="detail-grid"><div><span class="muted">Date of birth</span><strong>${recordValue(patient.dateOfBirth)}</strong></div><div><span class="muted">Gender</span><strong>${recordValue(patient.sex)}</strong></div><div><span class="muted">Phone</span><strong>${recordValue(patient.phone)}</strong></div><div><span class="muted">National ID</span><strong>${recordValue(patient.nationalId)}</strong></div><div><span class="muted">Insurance provider</span><strong>${recordValue(provider?.name)}</strong></div><div><span class="muted">Emergency contact</span><strong>${recordValue(patient.emergencyContact)}${patient.emergencyPhone ? ` · ${esc(patient.emergencyPhone)}` : ''}</strong></div><div><span class="muted">Address</span><strong>${recordValue(patient.address)}</strong></div></div><section class="medical-record"><h4>Medical record</h4><div class="detail-grid"><div><span class="muted">Allergies</span><strong>${recordValue(patient.allergies)}</strong></div><div><span class="muted">Conditions</span><strong>${recordValue(patient.conditions)}</strong></div><div><span class="muted">Medications</span><strong>${recordValue(patient.medications)}</strong></div><div><span class="muted">Clinical notes</span><strong>${recordValue(patient.medicalNotes)}</strong></div></div></section>${medicalFilesSection('patient', patient.id, 'patient')}<section class="care-history"><div class="history-heading"><h4>Previous sessions and treatments</h4><span class="pill">${sessions.length} visit${sessions.length === 1 ? '' : 's'}</span></div>${sessions.map((session) => `<button type="button" class="history-entry" data-session-id="${esc(session.id)}"><div><strong>${esc(session.date)} ${esc(session.time || '')} · ${esc(session.service)}</strong><small>${esc(session.treatment || session.note || session.closingNote || 'No treatment note.')}${session.followUpDate || session.followUp ? ` · ${tr('Follow-up')} ${esc(session.followUpDate || session.followUp)} ${esc(session.followUpTime || '')}` : ''}</small></div><span class="pill">${tr(session.status)}</span></button>`).join('') || '<p class="muted">No sessions recorded for this patient.</p>'}</section><div class="detail-actions"><button type="button" class="secondary" data-history-type="patient" data-history-id="${esc(patient.id)}">${tr('History')}</button><button type="button" class="secondary" data-print-patient-receipts="${esc(patient.id)}">${tr('Print all receipts')}</button><button type="button" class="secondary" data-print-patient-finance="${esc(patient.id)}">${tr('Patient financial report')}</button><button type="button" class="secondary" data-print-patient-sessions="${esc(patient.id)}">${tr('Full session report')}</button><button type="button" class="primary" data-edit-patient="${esc(patient.id)}">Edit patient</button></div>`;
   applyLanguage();
   $('patientDialog').showModal();
   renderMedicalFiles('patient', patient.id, 'patientFileList', 'patientFileError');
@@ -1160,7 +1259,7 @@ $('signOut').addEventListener('click', async () => {
     currentClinic = null;
     state = emptyState();
     localStorage.removeItem(legacyStoreKey);
-    ['recordDialog', 'sessionDialog', 'patientDialog'].forEach((id) => { if ($(id).open) $(id).close('logout'); });
+    ['recordDialog', 'sessionDialog', 'patientDialog', 'historyDialog'].forEach((id) => { if ($(id).open) $(id).close('logout'); });
     document.querySelectorAll('.admin-only').forEach((element) => element.classList.add('hidden'));
     document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.page === 'dashboard'));
     document.querySelectorAll('.page').forEach((page) => page.classList.toggle('active', page.id === 'page-dashboard'));
@@ -1179,6 +1278,7 @@ function resetRecordDialog() {
   dialogMode = '';
   editingPatientId = '';
   editingPaymentId = '';
+  editingSessionId = '';
   pendingPaymentSessionId = '';
 }
 
@@ -1186,6 +1286,7 @@ $('closeRecord').addEventListener('click', () => { $('recordDialog').close('canc
 $('cancelRecord').addEventListener('click', () => { $('recordDialog').close('cancel'); resetRecordDialog(); });
 $('closeSession').addEventListener('click', () => $('sessionDialog').close('cancel'));
 $('closePatient').addEventListener('click', () => $('patientDialog').close('cancel'));
+$('closeHistory').addEventListener('click', () => $('historyDialog').close('cancel'));
 $('languageToggle').addEventListener('click', toggleLanguage);
 $('languageToggleLogin').addEventListener('click', toggleLanguage);
 $('calendarPrev').addEventListener('click', () => { calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1); renderCalendar(); });
@@ -1273,21 +1374,43 @@ $('recordForm').addEventListener('submit', async (event) => {
   submit.disabled = true;
   setInlineError('recordError', '');
   const data = Object.fromEntries(new FormData(event.target).entries());
+  const changeReason = data.changeReason || '';
+  delete data.changeReason;
   try {
     if (dialogMode === 'patient') {
       const existing = editingPatientId ? patientById(editingPatientId) : null;
       data.criticalAlerts = Array.from(event.target.querySelectorAll('[name="criticalAlerts"]:checked')).map((input) => input.value);
       data.id = existing?.id || '';
-      await applyMutation('patient-upsert', { patient: data });
+      await applyMutation('patient-upsert', {
+        patient: data,
+        expectedRevision: existing?.revision,
+        changeReason
+      });
     }
     let savedSessionId = '';
     if (dialogMode === 'session') {
-      const nextState = await applyMutation('session-create', { session: data });
-      savedSessionId = nextState.sessions.at(-1)?.id || '';
+      const existing = editingSessionId ? sessionById(editingSessionId) : null;
+      if (existing) {
+        data.id = existing.id;
+        await applyMutation('session-update', {
+          session: data,
+          expectedRevision: existing.revision,
+          changeReason
+        });
+        savedSessionId = existing.id;
+      } else {
+        const nextState = await applyMutation('session-create', { session: data });
+        savedSessionId = nextState.sessions.at(-1)?.id || '';
+      }
     }
     if (dialogMode === 'payment') {
+      const existing = editingPaymentId ? state.payments.find((payment) => payment.id === editingPaymentId) : null;
       data.id = editingPaymentId;
-      await applyMutation(editingPaymentId ? 'payment-update' : 'payment-create', { payment: data });
+      await applyMutation(editingPaymentId ? 'payment-update' : 'payment-create', {
+        payment: data,
+        expectedRevision: existing?.revision,
+        changeReason
+      });
     }
     $('recordDialog').close('saved');
     resetRecordDialog();
@@ -1315,6 +1438,10 @@ document.addEventListener('click', (event) => {
   }
   const editPatientTarget = event.target.closest('[data-edit-patient]');
   if (editPatientTarget) { $('patientDialog').close('cancel'); openRecord('patient', editPatientTarget.dataset.editPatient); }
+  const editSessionTarget = event.target.closest('[data-edit-session]');
+  if (editSessionTarget) { $('sessionDialog').close('cancel'); openRecord('session', editSessionTarget.dataset.editSession); }
+  const historyTarget = event.target.closest('[data-history-type][data-history-id]');
+  if (historyTarget) openHistory(historyTarget.dataset.historyType, historyTarget.dataset.historyId);
   const printSessionTarget = event.target.closest('[data-print-session]');
   if (printSessionTarget) printSessionReceipt(printSessionTarget.dataset.printSession);
   const printReceiptsTarget = event.target.closest('[data-print-patient-receipts]');
@@ -1356,7 +1483,7 @@ document.addEventListener('click', (event) => {
   }
 });
 
-['recordDialog', 'sessionDialog', 'patientDialog'].forEach((id) => {
+['recordDialog', 'sessionDialog', 'patientDialog', 'historyDialog'].forEach((id) => {
   const dialog = $(id);
   dialog.addEventListener('click', (event) => {
     if (event.target !== dialog) return;

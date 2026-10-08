@@ -22,6 +22,8 @@ const PATIENT_FIELDS = [
   'emergencyContact', 'emergencyPhone', 'insuranceId', 'criticalNote', 'allergies',
   'conditions', 'medications', 'medicalNotes', 'notes'
 ];
+const AUDIT_ENTITY_TYPES = new Set(['patient', 'session', 'payment']);
+const AUDIT_ACTIONS = new Set(['created', 'updated', 'closed']);
 
 function emptyState() {
   return {
@@ -32,6 +34,7 @@ function emptyState() {
     services: [],
     bills: [],
     medicalFiles: [],
+    auditLog: [],
     settings: { nextPatientSequence: 1 }
   };
 }
@@ -62,6 +65,100 @@ function newId(prefix) {
   return `${prefix}-${randomUUID()}`;
 }
 
+function entityMetadata(record = {}) {
+  const revision = Number(record.revision);
+  return {
+    revision: Number.isSafeInteger(revision) && revision > 0 ? revision : 1,
+    createdAt: text(record.createdAt, 40),
+    createdBy: text(record.createdBy, 200),
+    createdByName: text(record.createdByName, 200),
+    updatedAt: text(record.updatedAt, 40),
+    updatedBy: text(record.updatedBy, 200),
+    updatedByName: text(record.updatedByName, 200)
+  };
+}
+
+function stampCreated(record, session, at = new Date().toISOString()) {
+  return {
+    ...record,
+    revision: 1,
+    createdAt: at,
+    createdBy: session.userId,
+    createdByName: text(session.userName, 200),
+    updatedAt: at,
+    updatedBy: session.userId,
+    updatedByName: text(session.userName, 200)
+  };
+}
+
+function stampUpdated(record, existing, session, expectedRevision, at = new Date().toISOString()) {
+  const currentRevision = entityMetadata(existing).revision;
+  if (Number(expectedRevision) !== currentRevision) {
+    throw new Error('This record changed after you opened it. Reopen it and review the latest version before saving.');
+  }
+  return {
+    ...record,
+    revision: currentRevision + 1,
+    createdAt: existing.createdAt || at,
+    createdBy: existing.createdBy || session.userId,
+    createdByName: existing.createdByName || text(session.userName, 200),
+    updatedAt: at,
+    updatedBy: session.userId,
+    updatedByName: text(session.userName, 200)
+  };
+}
+
+function snapshot(record) {
+  return JSON.parse(JSON.stringify(record));
+}
+
+function changeReason(value) {
+  const reason = text(value, 500);
+  if (!reason) throw new Error('Enter a reason for this change.');
+  return reason;
+}
+
+function recordAudit(state, session, entityType, action, after, before = null, reason = '') {
+  state.auditLog.push({
+    id: newId('audit'),
+    entityType,
+    entityId: after.id,
+    action,
+    version: after.revision,
+    changedAt: after.updatedAt,
+    changedBy: session.userId,
+    changedByName: text(session.userName, 200),
+    changedByRole: session.role === 'admin' ? 'admin' : 'staff',
+    reason: text(reason, 500),
+    before: before ? snapshot(before) : null,
+    after: snapshot(after)
+  });
+}
+
+function sanitizeAuditEntry(entry = {}) {
+  if (!validId(entry.id) || !AUDIT_ENTITY_TYPES.has(entry.entityType) || !validId(entry.entityId)) return null;
+  if (!AUDIT_ACTIONS.has(entry.action)) return null;
+  const version = Number(entry.version);
+  if (!Number.isSafeInteger(version) || version < 1) return null;
+  if (!entry.after || typeof entry.after !== 'object' || Array.isArray(entry.after)) return null;
+  return {
+    id: entry.id,
+    entityType: entry.entityType,
+    entityId: entry.entityId,
+    action: entry.action,
+    version,
+    changedAt: text(entry.changedAt, 40),
+    changedBy: text(entry.changedBy, 200),
+    changedByName: text(entry.changedByName, 200),
+    changedByRole: entry.changedByRole === 'admin' ? 'admin' : 'staff',
+    reason: text(entry.reason, 500),
+    before: entry.before && typeof entry.before === 'object' && !Array.isArray(entry.before)
+      ? snapshot(entry.before)
+      : null,
+    after: snapshot(entry.after)
+  };
+}
+
 function sanitizePatient(input = {}, existing = null, state = null) {
   const patient = {};
   PATIENT_FIELDS.forEach((field) => {
@@ -78,7 +175,7 @@ function sanitizePatient(input = {}, existing = null, state = null) {
     ? input.criticalAlerts.filter((item) => typeof item === 'string').slice(0, 20).map((item) => item.slice(0, 80))
     : Array.isArray(existing?.criticalAlerts) ? existing.criticalAlerts : [];
   patient.id = existing?.id || newId('patient');
-  return patient;
+  return { ...patient, ...entityMetadata(existing || input) };
 }
 
 function sanitizeSession(input = {}, state, existing = null) {
@@ -109,7 +206,8 @@ function sanitizeSession(input = {}, state, existing = null) {
     followUpTime,
     closingNote: text(existing?.closingNote, 20000),
     status: existing?.status === 'closed' ? 'closed' : 'open',
-    amount: existing?.status === 'closed' ? Number(existing.amount) : null
+    amount: existing?.status === 'closed' ? Number(existing.amount) : null,
+    ...entityMetadata(existing || input)
   };
 }
 
@@ -156,12 +254,20 @@ function normaliseState(raw) {
       const patient = { ...item };
       delete patient.photo;
       patient.insuranceId = text(patient.insuranceId, 120);
-      return patient;
+      return { ...patient, ...entityMetadata(patient) };
     })
     : [];
-  state.sessions = Array.isArray(raw.sessions) ? raw.sessions.filter((item) => item && typeof item === 'object') : [];
+  state.sessions = Array.isArray(raw.sessions)
+    ? raw.sessions.filter((item) => item && typeof item === 'object').map((item) => ({
+      ...item,
+      ...entityMetadata(item)
+    }))
+    : [];
   state.payments = Array.isArray(raw.payments)
-    ? raw.payments.filter((item) => item && typeof item === 'object').map(normalizePayment)
+    ? raw.payments.filter((item) => item && typeof item === 'object').map((item) => ({
+      ...normalizePayment(item),
+      ...entityMetadata(item)
+    }))
     : [];
   state.insurance = Array.isArray(raw.insurance) ? raw.insurance.filter((item) => item && typeof item === 'object') : [];
   state.services = Array.isArray(raw.services) ? raw.services.map(sanitizeService).filter(Boolean) : [];
@@ -173,6 +279,7 @@ function normaliseState(raw) {
     }))
     : [];
   state.medicalFiles = Array.isArray(raw.medicalFiles) ? raw.medicalFiles.map(sanitizeMetadata).filter(Boolean) : [];
+  state.auditLog = Array.isArray(raw.auditLog) ? raw.auditLog.map(sanitizeAuditEntry).filter(Boolean) : [];
   const configuredSequence = Number(raw.settings?.nextPatientSequence);
   state.settings.nextPatientSequence = Number.isSafeInteger(configuredSequence) && configuredSequence > 0
     ? Math.max(configuredSequence, nextPatientSequence(state.patients))
@@ -384,20 +491,64 @@ class ClinicStorage {
       if (action === 'patient-upsert') {
         const existing = payload.patient?.id ? state.patients.find((patient) => patient.id === payload.patient.id) : null;
         if (payload.patient?.id && !existing) throw new Error('The patient record no longer exists.');
-        const patient = sanitizePatient(payload.patient, existing, state);
+        let patient = sanitizePatient(payload.patient, existing, state);
         patient.fileNumber = existing?.fileNumber || allocatePatientFileNumber(state, clinicId);
-        if (existing) state.patients[state.patients.indexOf(existing)] = patient;
-        else state.patients.push(patient);
+        if (existing) {
+          const reason = changeReason(payload.changeReason);
+          patient = stampUpdated(patient, existing, session, payload.expectedRevision);
+          state.patients[state.patients.indexOf(existing)] = patient;
+          recordAudit(state, session, 'patient', 'updated', patient, existing, reason);
+        } else {
+          patient = stampCreated(patient, session);
+          state.patients.push(patient);
+          recordAudit(state, session, 'patient', 'created', patient);
+        }
       } else if (action === 'session-create') {
-        state.sessions.push(sanitizeSession(payload.session, state));
+        const created = stampCreated(sanitizeSession(payload.session, state), session);
+        state.sessions.push(created);
+        recordAudit(state, session, 'session', 'created', created);
+      } else if (action === 'session-update') {
+        const existing = state.sessions.find((item) => item.id === payload.session?.id);
+        if (!existing) throw new Error('The session record no longer exists.');
+        const reason = changeReason(payload.changeReason);
+        let updated = sanitizeSession(payload.session, state, existing);
+        if (existing.status === 'closed' && updated.patientId !== existing.patientId) {
+          throw new Error('The patient cannot be changed after a session is closed.');
+        }
+        if (existing.status === 'closed' && session.role !== 'admin') {
+          const structuralFields = ['date', 'time', 'service'];
+          if (structuralFields.some((field) => updated[field] !== existing[field])) {
+            throw new Error('Only clinic administrators can change the date, time, or service of a closed session.');
+          }
+        }
+        if (existing.status === 'closed' && payload.session.amount !== undefined && Number(payload.session.amount) !== Number(existing.amount)) {
+          if (session.role !== 'admin') throw new Error('Only clinic administrators can change a closed session amount.');
+          const nextAmount = amount(payload.session.amount);
+          const financials = sessionFinancials(existing, state.payments);
+          const committed = amount(financials.received + financials.pendingInsurance);
+          if (nextAmount <= 0 || nextAmount + 0.005 < committed) {
+            throw new Error('The session amount cannot be lower than payments and active insurance claims.');
+          }
+          updated.amount = nextAmount;
+        }
+        if (existing.status === 'closed') updated.closingNote = text(payload.session.closingNote ?? existing.closingNote, 20000);
+        updated = stampUpdated(updated, existing, session, payload.expectedRevision);
+        state.sessions[state.sessions.indexOf(existing)] = updated;
+        recordAudit(state, session, 'session', 'updated', updated, existing, reason);
       } else if (action === 'session-close') {
         const target = state.sessions.find((item) => item.id === payload.sessionId);
         const amount = Number(payload.amount);
         if (!target || target.status !== 'open') throw new Error('This session cannot be closed.');
         if (!Number.isFinite(amount) || amount <= 0) throw new Error('Enter a valid final session amount.');
-        target.amount = amount;
-        target.closingNote = text(payload.closingNote, 20000);
-        target.status = 'closed';
+        const before = snapshot(target);
+        const closed = stampUpdated({
+          ...target,
+          amount,
+          closingNote: text(payload.closingNote, 20000),
+          status: 'closed'
+        }, target, session, payload.expectedRevision);
+        state.sessions[state.sessions.indexOf(target)] = closed;
+        recordAudit(state, session, 'session', 'closed', closed, before, text(payload.changeReason, 500) || 'Session closed');
       } else if (action === 'payment-create' || action === 'payment-update') {
         if (session.role !== 'admin') throw new Error('Only clinic administrators can manage payments.');
         const input = payload.payment || {};
@@ -447,7 +598,7 @@ class ClinicStorage {
           }
           normalized = normalizePayment({ ...input, amount: directAmount, status: 'paid' });
         }
-        const payment = {
+        let payment = {
           ...normalized,
           id: existing?.id || newId('payment'),
           sessionId: target.id,
@@ -459,8 +610,16 @@ class ClinicStorage {
             ? input.settlementDate
             : ''
         };
-        if (existing) state.payments[state.payments.indexOf(existing)] = payment;
-        else state.payments.push(payment);
+        if (existing) {
+          const reason = changeReason(payload.changeReason);
+          payment = stampUpdated(payment, existing, session, payload.expectedRevision);
+          state.payments[state.payments.indexOf(existing)] = payment;
+          recordAudit(state, session, 'payment', 'updated', payment, existing, reason);
+        } else {
+          payment = stampCreated(payment, session);
+          state.payments.push(payment);
+          recordAudit(state, session, 'payment', 'created', payment);
+        }
       } else if (action === 'insurance-create') {
         if (session.role !== 'admin') throw new Error('Only clinic administrators can manage insurance providers.');
         const name = text(payload.provider?.name, 500);

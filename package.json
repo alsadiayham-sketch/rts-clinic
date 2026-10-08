@@ -1,6 +1,6 @@
 {
   "name": "rts-clinic",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "RTS Clinic management system",
   "main": "src/main.js",
   "private": true,
