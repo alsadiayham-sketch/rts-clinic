@@ -291,7 +291,11 @@ const translations = {
   'Only clinic administrators can change the date, time, or service of a closed session.': 'يمكن لمديري العيادة فقط تغيير تاريخ أو وقت أو خدمة الجلسة المغلقة.',
   'The session amount cannot be lower than payments and active insurance claims.': 'لا يمكن أن يكون مبلغ الجلسة أقل من الدفعات ومطالبات التأمين النشطة.',
   'Final amount': 'المبلغ النهائي',
-  'Record details': 'تفاصيل السجل'
+  'Record details': 'تفاصيل السجل',
+  'Next session date': 'تاريخ الجلسة القادمة',
+  'Next session time': 'وقت الجلسة القادمة',
+  'Follow-up appointment': 'موعد متابعة',
+  'Scheduled follow-up': 'متابعة مجدولة'
 };
 const reverseTranslations = Object.fromEntries(Object.entries(translations).map(([english, arabic]) => [arabic, english]));
 const tr = (value) => language === 'ar' ? (translations[value] || value) : (reverseTranslations[value] || value);
@@ -562,13 +566,46 @@ function renderDashboard() {
   const max = Math.max(day.total, 1);
   $('paymentMix').innerHTML = Object.entries(day.byMethod).map(([method, amount]) => `<div><div class="row-card"><span>${tr(method === 'debit' ? 'Debit card' : method[0].toUpperCase() + method.slice(1))}</span><strong>${money(amount)}</strong></div><progress class="mix-progress" max="${max}" value="${amount}"></progress></div>`).join('');
   renderCalendar();
-  const upcoming = state.sessions.filter((session) => session.date >= today()).sort((a, b) => `${a.date} ${a.time || ''}`.localeCompare(`${b.date} ${b.time || ''}`)).slice(0, 5);
-  $('upcomingSessions').innerHTML = upcoming.map(sessionRow).join('') || '<p class="muted">No upcoming sessions.</p>';
+  const upcoming = calendarAppointments().filter((appointment) => appointment.date >= today())
+    .sort((a, b) => `${a.date} ${a.time || ''}`.localeCompare(`${b.date} ${b.time || ''}`))
+    .slice(0, 5);
+  $('upcomingSessions').innerHTML = upcoming.map(appointmentRow).join('') || '<p class="muted">No upcoming sessions.</p>';
 }
 
 function sessionRow(session) {
   const label = session.status === 'closed' ? money(session.amount) : 'Open';
   return `<button type="button" class="row-card row-button" data-session-id="${esc(session.id)}"><div><strong>${esc(patientName(session.patientId))}</strong><small>${esc(session.date)} ${esc(session.time || '')} · ${esc(session.service)}</small></div><span class="pill">${label}</span></button>`;
+}
+
+function followUpIsMaterialized(session) {
+  const followUpDate = session.followUpDate || session.followUp;
+  if (!followUpDate) return false;
+  return state.sessions.some((candidate) => candidate.id !== session.id
+    && candidate.patientId === session.patientId
+    && candidate.date === followUpDate
+    && (!session.followUpTime || candidate.time === session.followUpTime));
+}
+
+function calendarAppointments(date = '') {
+  const appointments = state.sessions
+    .filter((session) => !date || session.date === date)
+    .map((session) => ({ session, date: session.date, time: session.time || '', followUp: false }));
+  state.sessions.forEach((session) => {
+    const followUpDate = session.followUpDate || session.followUp;
+    if (!followUpDate || (date && followUpDate !== date) || followUpIsMaterialized(session)) return;
+    appointments.push({
+      session,
+      date: followUpDate,
+      time: session.followUpTime || '',
+      followUp: true
+    });
+  });
+  return appointments;
+}
+
+function appointmentRow(appointment) {
+  if (!appointment.followUp) return sessionRow(appointment.session);
+  return `<button type="button" class="row-card row-button follow-up-row" data-session-id="${esc(appointment.session.id)}"><div><strong>${esc(patientName(appointment.session.patientId))}</strong><small>${esc(appointment.date)} ${esc(appointment.time)} · ${tr('Follow-up appointment')}</small></div><span class="pill follow-up-pill">${tr('Scheduled follow-up')}</span></button>`;
 }
 
 function renderCalendar() {
@@ -582,10 +619,11 @@ function renderCalendar() {
   for (let index = 0; index < leadingDays; index += 1) cells.push('<div class="calendar-day is-empty"></div>');
   for (let day = 1; day <= daysInMonth; day += 1) {
     const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const sessions = state.sessions.filter((session) => session.date === date);
+    const appointments = calendarAppointments(date)
+      .sort((a, b) => `${a.time} ${a.followUp ? '1' : '0'}`.localeCompare(`${b.time} ${b.followUp ? '1' : '0'}`));
     const classes = ['calendar-day'];
     if (date === today()) classes.push('is-today');
-    cells.push(`<div class="${classes.join(' ')}"><span class="calendar-date">${day}</span>${sessions.slice(0, 3).map((session) => `<button type="button" class="calendar-event" data-session-id="${esc(session.id)}">${esc(session.time || '')} ${esc(patientName(session.patientId))}</button>`).join('')}${sessions.length > 3 ? `<small class="calendar-more">+${sessions.length - 3} more</small>` : ''}</div>`);
+    cells.push(`<div class="${classes.join(' ')}"><span class="calendar-date">${day}</span>${appointments.slice(0, 3).map((appointment) => `<button type="button" class="calendar-event${appointment.followUp ? ' is-follow-up' : ''}" data-session-id="${esc(appointment.session.id)}" aria-label="${esc(`${appointment.followUp ? tr('Follow-up appointment') : tr('Session details')}: ${patientName(appointment.session.patientId)}`)}">${esc(appointment.time)} ${appointment.followUp ? `${tr('Follow-up')} · ` : ''}${esc(patientName(appointment.session.patientId))}</button>`).join('')}${appointments.length > 3 ? `<small class="calendar-more">+${appointments.length - 3} more</small>` : ''}</div>`);
   }
   $('calendar').innerHTML = cells.join('');
 }
@@ -1015,7 +1053,7 @@ function openSessionDetails(sessionId) {
     return `<button type="button" class="row-card payment-row-button" data-payment-id="${esc(payment.id)}"><span>${tr(payment.method === 'debit' ? 'Debit card' : payment.method[0].toUpperCase() + payment.method.slice(1))} · ${tr(payment.status || 'paid')}</span><strong>${amountLabel}</strong></button>`;
   }).join('');
   const followUp = session.followUpDate || session.followUp;
-  $('sessionDetails').innerHTML = `<section class="detail-section"><div class="detail-grid"><div><span class="muted">Patient</span><strong>${esc(patientName(session.patientId))}</strong>${session.patientId !== 'guest' ? `<button type="button" class="link-button" data-patient-id="${esc(session.patientId)}">Open patient file</button>` : ''}</div><div><span class="muted">Date & time</span><strong>${esc(session.date)} ${esc(session.time || '')}</strong></div><div><span class="muted">Service</span><strong>${esc(session.service)}</strong></div><div><span class="muted">Status</span><strong>${tr(session.status === 'closed' ? 'Closed' : 'Open')}</strong></div></div><p class="metadata-line">${revisionMetadata(session)}</p><div class="detail-actions"><button type="button" class="secondary" data-history-type="session" data-history-id="${esc(session.id)}">${tr('History')}</button><button type="button" class="primary" data-edit-session="${esc(session.id)}">${tr('Edit session')}</button></div></section><section class="detail-section"><h4>Treatment and follow-up</h4><p><strong>${esc(session.treatment || 'No treatment recorded.')}</strong></p><p class="muted">${followUp ? `${tr('Follow-up')}: ${esc(followUp)} ${esc(session.followUpTime || '')}` : tr('No follow-up date recorded.')}</p><p>${esc(session.note || 'No session note.')}</p>${session.closingNote ? `<p><strong>${tr('Closing note')}:</strong> ${esc(session.closingNote)}</p>` : ''}</section>${session.status === 'closed' ? `<section class="detail-section"><div class="history-heading"><h4>${tr('Payments')}</h4><strong class="nis-total"><span class="currency-mark" aria-hidden="true">₪</span>${money(session.amount)} <small>${tr('NIS')}</small></strong></div>${paymentRows || '<p class="muted">No payments recorded.</p>'}<div class="financial-strip"><div><span>${tr('Received')}</span><strong>${money(finance.received)}</strong></div><div><span>${tr('Claim pending')}</span><strong>${money(finance.pendingInsurance)}</strong></div><div><span>${tr('To allocate')}</span><strong>${money(finance.outstanding)}</strong></div></div><div class="detail-actions"><button type="button" class="secondary" data-print-session="${esc(session.id)}">${tr('Print receipt')}</button>${paymentAction}</div></section>` : `<section class="detail-section"><form id="closeSessionForm" class="form-grid"><label>Final session amount<input name="amount" type="number" min="0.01" step="0.01" required></label><label>Closing note<textarea name="closingNote"></textarea></label><p id="sessionActionError" class="form-error full-width" role="alert" tabindex="-1"></p><div class="dialog-actions"><button class="secondary" type="submit" value="details">Close session</button>${currentUser?.role === 'admin' ? `<button class="primary" type="submit" value="payment">${tr('Close & record payment')}</button>` : ''}</div></form></section>`}${medicalFilesSection('session', session.id, 'session')}`;
+  $('sessionDetails').innerHTML = `<section class="detail-section"><div class="detail-grid"><div><span class="muted">Patient</span><strong>${esc(patientName(session.patientId))}</strong>${session.patientId !== 'guest' ? `<button type="button" class="link-button" data-patient-id="${esc(session.patientId)}">Open patient file</button>` : ''}</div><div><span class="muted">Date & time</span><strong>${esc(session.date)} ${esc(session.time || '')}</strong></div><div><span class="muted">Service</span><strong>${esc(session.service)}</strong></div><div><span class="muted">Status</span><strong>${tr(session.status === 'closed' ? 'Closed' : 'Open')}</strong></div></div><p class="metadata-line">${revisionMetadata(session)}</p><div class="detail-actions"><button type="button" class="secondary" data-history-type="session" data-history-id="${esc(session.id)}">${tr('History')}</button><button type="button" class="primary" data-edit-session="${esc(session.id)}">${tr('Edit session')}</button></div></section><section class="detail-section"><h4>Treatment and follow-up</h4><p><strong>${esc(session.treatment || 'No treatment recorded.')}</strong></p><p class="muted">${followUp ? `${tr('Follow-up')}: ${esc(followUp)} ${esc(session.followUpTime || '')}` : tr('No follow-up date recorded.')}</p><p>${esc(session.note || 'No session note.')}</p>${session.closingNote ? `<p><strong>${tr('Closing note')}:</strong> ${esc(session.closingNote)}</p>` : ''}</section>${session.status === 'closed' ? `<section class="detail-section"><div class="history-heading"><h4>${tr('Payments')}</h4><strong class="nis-total"><span class="currency-mark" aria-hidden="true">₪</span>${money(session.amount)} <small>${tr('NIS')}</small></strong></div>${paymentRows || '<p class="muted">No payments recorded.</p>'}<div class="financial-strip"><div><span>${tr('Received')}</span><strong>${money(finance.received)}</strong></div><div><span>${tr('Claim pending')}</span><strong>${money(finance.pendingInsurance)}</strong></div><div><span>${tr('To allocate')}</span><strong>${money(finance.outstanding)}</strong></div></div><div class="detail-actions"><button type="button" class="secondary" data-print-session="${esc(session.id)}">${tr('Print receipt')}</button>${paymentAction}</div></section>  ` : `<section class="detail-section"><form id="closeSessionForm" class="form-grid"><label>Final session amount<input name="amount" type="number" min="0.01" step="0.01" required></label><label>Closing note<textarea name="closingNote"></textarea></label><label>${tr('Next session date')}<input name="followUpDate" type="date" min="${today()}" value="${esc(session.followUpDate || session.followUp || '')}"></label><label>${tr('Next session time')}<input name="followUpTime" type="time" value="${esc(session.followUpTime || '')}"></label><p id="sessionActionError" class="form-error full-width" role="alert" tabindex="-1"></p><div class="dialog-actions"><button class="secondary" type="submit" value="details">Close session</button>${currentUser?.role === 'admin' ? `<button class="primary" type="submit" value="payment">${tr('Close & record payment')}</button>` : ''}</div></form></section>`}${medicalFilesSection('session', session.id, 'session')}`;
   applyLanguage();
   if (!$('sessionDialog').open) $('sessionDialog').showModal();
   renderMedicalFiles('session', session.id, 'sessionFileList', 'sessionFileError');
@@ -1027,7 +1065,14 @@ function openSessionDetails(sessionId) {
     submit.disabled = true;
     setInlineError('sessionActionError', '');
     try {
-      await applyMutation('session-close', { sessionId: session.id, expectedRevision: session.revision, amount: data.amount, closingNote: data.closingNote });
+      await applyMutation('session-close', {
+        sessionId: session.id,
+        expectedRevision: session.revision,
+        amount: data.amount,
+        closingNote: data.closingNote,
+        followUpDate: data.followUpDate,
+        followUpTime: data.followUpTime
+      });
       if (continueToPayment) {
         $('sessionDialog').close('payment');
         openRecord('payment', session.id);

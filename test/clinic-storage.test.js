@@ -308,12 +308,14 @@ test('rejects stale edits and unsafe closed-session financial corrections', asyn
     let state = await storage.mutate('clinic-a', staff, 'patient-upsert', {
       patient: { fullName: 'Patient A' }
     });
+
     const stalePatient = { ...state.patients[0] };
     state = await storage.mutate('clinic-a', staff, 'patient-upsert', {
       patient: { ...stalePatient, phone: '0500000000' },
       expectedRevision: stalePatient.revision,
       changeReason: 'Added phone.'
     });
+
     await assert.rejects(
       storage.mutate('clinic-a', staff, 'patient-upsert', {
         patient: { ...stalePatient, phone: '0509999999' },
@@ -370,4 +372,30 @@ test('rejects stale edits and unsafe closed-session financial corrections', asyn
       }),
       /cannot be lower/
     );
+});
+
+test('persists the next-session appointment when a session is closed', async () => {
+  const storage = new ClinicStorage(path.join(testRoot, 'follow-up-calendar'));
+  let state = await storage.mutate('clinic-a', staff, 'patient-upsert', {
+    patient: { fullName: 'Patient A' }
+  });
+  state = await storage.mutate('clinic-a', staff, 'session-create', {
+    session: {
+      patientId: state.patients[0].id,
+      date: '2026-10-08',
+      time: '10:00',
+      service: 'Consultation'
+    }
+  });
+  state = await storage.mutate('clinic-a', staff, 'session-close', {
+    sessionId: state.sessions[0].id,
+    expectedRevision: state.sessions[0].revision,
+    amount: 100,
+    followUpDate: '2026-10-15',
+    followUpTime: '11:30'
+  });
+
+  assert.equal(state.sessions[0].followUpDate, '2026-10-15');
+  assert.equal(state.sessions[0].followUpTime, '11:30');
+  assert.equal(state.auditLog.at(-1).after.followUpDate, '2026-10-15');
 });

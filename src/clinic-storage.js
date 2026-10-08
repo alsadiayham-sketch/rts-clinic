@@ -540,9 +540,14 @@ class ClinicStorage {
         const amount = Number(payload.amount);
         if (!target || target.status !== 'open') throw new Error('This session cannot be closed.');
         if (!Number.isFinite(amount) || amount <= 0) throw new Error('Enter a valid final session amount.');
+        const closeDetails = sanitizeSession({
+          ...target,
+          followUpDate: payload.followUpDate ?? target.followUpDate,
+          followUpTime: payload.followUpTime ?? target.followUpTime
+        }, state, target);
         const before = snapshot(target);
         const closed = stampUpdated({
-          ...target,
+          ...closeDetails,
           amount,
           closingNote: text(payload.closingNote, 20000),
           status: 'closed'
