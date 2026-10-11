@@ -3,10 +3,13 @@ const fs = require('fs/promises');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const { ClinicStorage } = require('./clinic-storage');
+const { OwnerTelemetryPublisher } = require('./owner-telemetry');
 
 let mainWindow = null;
 let clinicStorage = null;
 const authenticatedSessions = new Map();
+const ownerTelemetryPublishers = new Map();
+const appVersion = require('../package.json').version;
 const UPDATE_RELEASES_URL = 'https://github.com/alsadiayham-sketch/rts-clinic/releases/latest';
 const CLINIC_AUTH_URL = 'https://rts-royal.pages.dev/api/pos-login';
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
@@ -75,6 +78,30 @@ function publicSession(session) {
   };
 }
 
+function stopOwnerTelemetry(rendererId) {
+  const publisher = ownerTelemetryPublishers.get(rendererId);
+  if (!publisher) return;
+  publisher.stop();
+  ownerTelemetryPublishers.delete(rendererId);
+}
+
+function startOwnerTelemetry(rendererId, session) {
+  stopOwnerTelemetry(rendererId);
+  if (!session.authToken || !clinicStorage) return;
+  const publisher = new OwnerTelemetryPublisher();
+  publisher.start({
+    authToken: session.authToken,
+    appVersion,
+    getState: () => clinicStorage.load(session.clinicId)
+  });
+  ownerTelemetryPublishers.set(rendererId, publisher);
+}
+
+function publishOwnerTelemetry(rendererId) {
+  const publisher = ownerTelemetryPublishers.get(rendererId);
+  if (publisher) void publisher.publishNow().catch(() => {});
+}
+
 function focusMainWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) {
     if (app.isReady()) createWindow();
@@ -113,14 +140,22 @@ function createWindow() {
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   mainWindow.webContents.on('will-navigate', (event) => event.preventDefault());
   mainWindow.webContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
-    if (isMainFrame && !isInPlace) authenticatedSessions.delete(rendererId);
+    if (isMainFrame && !isInPlace) {
+      stopOwnerTelemetry(rendererId);
+      authenticatedSessions.delete(rendererId);
+    }
   });
-  mainWindow.webContents.on('destroyed', () => authenticatedSessions.delete(rendererId));
+  mainWindow.webContents.on('destroyed', () => {
+    stopOwnerTelemetry(rendererId);
+    authenticatedSessions.delete(rendererId);
+  });
   mainWindow.webContents.on('did-finish-load', () => focusMainWindow());
   mainWindow.on('focus', () => {
     if (!mainWindow.isDestroyed()) mainWindow.webContents.send('clinic-window-activated');
   });
   mainWindow.on('closed', () => {
+    stopOwnerTelemetry(rendererId);
+    authenticatedSessions.delete(rendererId);
     mainWindow = null;
   });
 }
@@ -173,6 +208,7 @@ ipcMain.handle('updater-open-releases', async (event) => {
 
 ipcMain.handle('clinic-login', async (event, credentials = {}) => {
   assertTrustedSender(event);
+  stopOwnerTelemetry(event.sender.id);
   authenticatedSessions.delete(event.sender.id);
   const clinicId = typeof credentials.storeId === 'string' ? credentials.storeId.trim().toLowerCase() : '';
   const username = typeof credentials.username === 'string' ? credentials.username.trim() : '';
@@ -210,9 +246,11 @@ ipcMain.handle('clinic-login', async (event, credentials = {}) => {
       clinicName: String(payload.store?.name || clinicId).slice(0, 200),
       userId: String(payload.user.id || payload.user.username || username).slice(0, 200),
       userName: String(payload.user.name || payload.user.username || username).slice(0, 200),
-      role: payload.user.role === 'admin' ? 'admin' : 'staff'
+      role: payload.user.role === 'admin' ? 'admin' : 'staff',
+      authToken: typeof payload.token === 'string' ? payload.token.slice(0, 4096) : ''
     };
     authenticatedSessions.set(event.sender.id, session);
+    startOwnerTelemetry(event.sender.id, session);
     return { ok: true, ...publicSession(session) };
   } catch (error) {
     return {
@@ -228,6 +266,7 @@ ipcMain.handle('clinic-login', async (event, credentials = {}) => {
 
 ipcMain.handle('clinic-logout', (event) => {
   assertTrustedSender(event);
+  stopOwnerTelemetry(event.sender.id);
   authenticatedSessions.delete(event.sender.id);
   return { ok: true };
 });
@@ -239,12 +278,16 @@ ipcMain.handle('clinic-data-load', async (event) => {
 
 ipcMain.handle('clinic-data-mutate', async (event, action, payload) => {
   const session = requireSession(event);
-  return clinicStorage.mutate(session.clinicId, session, action, payload);
+  const state = await clinicStorage.mutate(session.clinicId, session, action, payload);
+  publishOwnerTelemetry(event.sender.id);
+  return state;
 });
 
 ipcMain.handle('clinic-data-import-legacy', async (event, legacyState) => {
   const session = requireSession(event);
-  return clinicStorage.importLegacy(session.clinicId, legacyState);
+  const result = await clinicStorage.importLegacy(session.clinicId, legacyState);
+  publishOwnerTelemetry(event.sender.id);
+  return result;
 });
 
 ipcMain.handle('clinic-data-export', async (event) => {
@@ -267,7 +310,9 @@ ipcMain.handle('clinic-file-list', async (event, recordType, recordId) => {
 
 ipcMain.handle('clinic-file-upload', async (event, input) => {
   const session = requireSession(event);
-  return clinicStorage.uploadFile(session.clinicId, session, input);
+  const result = await clinicStorage.uploadFile(session.clinicId, session, input);
+  publishOwnerTelemetry(event.sender.id);
+  return result;
 });
 
 ipcMain.handle('clinic-file-download', async (event, fileId) => {
@@ -285,5 +330,7 @@ ipcMain.handle('clinic-file-download', async (event, fileId) => {
 
 ipcMain.handle('clinic-file-delete', async (event, fileId) => {
   const session = requireSession(event, 'admin');
-  return clinicStorage.deleteFile(session.clinicId, session, fileId);
+  const result = await clinicStorage.deleteFile(session.clinicId, session, fileId);
+  publishOwnerTelemetry(event.sender.id);
+  return result;
 });
