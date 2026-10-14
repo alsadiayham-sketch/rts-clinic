@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('rtsClinic', {
     return ipcRenderer.invoke('clinic-data-import-legacy', state);
   },
   exportData: () => ipcRenderer.invoke('clinic-data-export'),
+  restoreData: () => ipcRenderer.invoke('clinic-data-restore'),
   onWindowActivated: (callback) => {
     if (typeof callback !== 'function') throw new Error('Window activation callback is required.');
     const listener = () => callback();

@@ -12,7 +12,8 @@ const translations = {
   'Bills & reports': 'الفواتير والتقارير',
   'Clinic user': 'مستخدم العيادة',
   'Local data': 'بيانات محلية',
-  'Export data': 'تصدير البيانات',
+  'Export backup': 'تصدير نسخة احتياطية',
+  'Restore backup': 'استعادة نسخة احتياطية',
   'Sign out': 'تسجيل الخروج',
   'Today collected': 'المحصّل اليوم',
   'Sessions today': 'جلسات اليوم',
@@ -168,7 +169,8 @@ const translations = {
   'Enter an insurance provider name.': 'أدخل اسم مزود التأمين.',
   'Select a valid report date range.': 'اختر نطاق تاريخ صالحاً للتقرير.',
   'Bill generated successfully.': 'تم إنشاء الفاتورة بنجاح.',
-  'Data exported successfully.': 'تم تصدير البيانات بنجاح.',
+  'Protected backup exported successfully.': 'تم تصدير النسخة الاحتياطية المحمية بنجاح.',
+  'Protected backup restored successfully.': 'تمت استعادة النسخة الاحتياطية المحمية بنجاح.',
   'This session cannot be closed.': 'لا يمكن إغلاق هذه الجلسة.',
   'Enter a valid final session amount.': 'أدخل مبلغاً نهائياً صالحاً للجلسة.',
   'Patient name and file number are required.': 'اسم المريض ورقم الملف مطلوبان.',
@@ -724,13 +726,14 @@ function renderReports() {
   const to = $('reportTo').value;
   const selectedSessions = state.sessions.filter((session) => session.status === 'closed' && (!from || session.date >= from) && (!to || session.date <= to));
   const result = totals(from, to);
+  const reportPatientIds = [...new Set(selectedSessions.map((session) => session.patientId))];
   $('reportSummary').innerHTML = `<div class="metric-grid"><div class="metric"><span>Sessions</span><strong>${selectedSessions.length}</strong></div><div class="metric"><span>Collected</span><strong>${money(result.total)}</strong></div><div class="metric"><span>Cash</span><strong>${money(result.byMethod.cash)}</strong></div><div class="metric"><span>Insurance</span><strong>${money(result.byMethod.insurance)}</strong></div></div>`;
-  $('reportsTable').innerHTML = `<table><thead><tr><th>Patient</th><th>Sessions</th><th>Session value</th><th>Collected</th><th>Balance</th></tr></thead><tbody>${state.patients.map((patient) => {
-    const sessions = selectedSessions.filter((session) => session.patientId === patient.id);
+  $('reportsTable').innerHTML = `<table><thead><tr><th>Patient</th><th>Sessions</th><th>Session value</th><th>Collected</th><th>Balance</th></tr></thead><tbody>${reportPatientIds.map((patientId) => {
+    const sessions = selectedSessions.filter((session) => session.patientId === patientId);
     const value = sessions.reduce((sum, session) => sum + Number(session.amount || 0), 0);
     const sessionIds = new Set(sessions.map((session) => session.id));
     const collected = state.payments.filter((payment) => sessionIds.has(payment.sessionId)).reduce((sum, payment) => sum + paymentCollected(payment), 0);
-    return sessions.length ? `<tr><td>${esc(patientName(patient.id))}</td><td>${sessions.length}</td><td>${money(value)}</td><td>${money(collected)}</td><td>${money(Math.max(value - collected, 0))}</td></tr>` : '';
+    return `<tr><td>${esc(patientName(patientId))}</td><td>${sessions.length}</td><td>${money(value)}</td><td>${money(collected)}</td><td>${money(Math.max(value - collected, 0))}</td></tr>`;
   }).join('')}</tbody></table>`;
   const billSearch = ($('billSearch')?.value || '').trim().toLowerCase();
   const bills = state.bills.filter((bill) => {
@@ -1406,9 +1409,24 @@ $('exportData').addEventListener('click', async (event) => {
   button.disabled = true;
   try {
     const result = await window.rtsClinic.exportData();
-    if (result?.ok) showAppMessage('Data exported successfully.');
+    if (result?.ok) showAppMessage('Protected backup exported successfully.');
   } catch (error) {
     showAppMessage(errorMessage(error, 'Unable to save changes.'), true);
+  } finally {
+    button.disabled = false;
+  }
+});
+$('restoreData').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    const result = await window.rtsClinic.restoreData();
+    if (result?.ok) {
+      replaceState(result.state);
+      showAppMessage('Protected backup restored successfully.');
+    }
+  } catch (error) {
+    showAppMessage(errorMessage(error, 'Unable to load this clinic workspace.'), true);
   } finally {
     button.disabled = false;
   }

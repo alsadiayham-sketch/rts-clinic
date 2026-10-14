@@ -1,8 +1,9 @@
-const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } = require('electron');
 const fs = require('fs/promises');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const { ClinicStorage } = require('./clinic-storage');
+const { OsBoundKeyProtector } = require('./data-protection');
 const { OwnerTelemetryPublisher } = require('./owner-telemetry');
 
 let mainWindow = null;
@@ -116,7 +117,8 @@ function focusMainWindow() {
 }
 
 function createWindow() {
-  clinicStorage = new ClinicStorage(app.getPath('userData'));
+  const userDataPath = app.getPath('userData');
+  clinicStorage = new ClinicStorage(userDataPath, new OsBoundKeyProtector(userDataPath, safeStorage));
   mainWindow = new BrowserWindow({
     width: 1360,
     height: 860,
@@ -293,14 +295,37 @@ ipcMain.handle('clinic-data-import-legacy', async (event, legacyState) => {
 ipcMain.handle('clinic-data-export', async (event) => {
   const session = requireSession(event, 'admin');
   const result = await dialog.showSaveDialog(mainWindow, {
-    title: 'Export clinic data',
-    defaultPath: `rts-clinic-${session.clinicId}-${new Date().toISOString().slice(0, 10)}.json`,
-    filters: [{ name: 'JSON', extensions: ['json'] }]
+    title: 'Export protected clinic backup',
+    defaultPath: `rts-clinic-${session.clinicId}-${new Date().toISOString().slice(0, 10)}.rtsclinic`,
+    filters: [{ name: 'RTS Clinic protected backup', extensions: ['rtsclinic'] }]
   });
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
-  const state = await clinicStorage.load(session.clinicId);
-  await fs.writeFile(result.filePath, JSON.stringify(state, null, 2), { encoding: 'utf8', flag: 'w' });
+  const backup = await clinicStorage.exportProtected(session.clinicId);
+  await fs.writeFile(result.filePath, backup, { flag: 'w', mode: 0o600 });
   return { ok: true };
+});
+
+ipcMain.handle('clinic-data-restore', async (event) => {
+  const session = requireSession(event, 'admin');
+  const selection = await dialog.showOpenDialog(mainWindow, {
+    title: 'Restore protected clinic backup',
+    properties: ['openFile'],
+    filters: [{ name: 'RTS Clinic protected backup', extensions: ['rtsclinic'] }]
+  });
+  if (selection.canceled || selection.filePaths.length !== 1) return { ok: false, canceled: true };
+  const confirmation = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    buttons: ['Cancel', 'Restore backup'],
+    defaultId: 0,
+    cancelId: 0,
+    title: 'Replace clinic workspace?',
+    message: 'Restoring this backup will replace the current clinic workspace.',
+    detail: 'The backup must belong to this clinic and be protected for this Windows user.'
+  });
+  if (confirmation.response !== 1) return { ok: false, canceled: true };
+  const state = await clinicStorage.restoreProtected(session.clinicId, await fs.readFile(selection.filePaths[0]));
+  publishOwnerTelemetry(event.sender.id);
+  return { ok: true, state };
 });
 
 ipcMain.handle('clinic-file-list', async (event, recordType, recordId) => {
@@ -317,14 +342,14 @@ ipcMain.handle('clinic-file-upload', async (event, input) => {
 
 ipcMain.handle('clinic-file-download', async (event, fileId) => {
   const session = requireSession(event);
-  const { metadata, source } = await clinicStorage.getFile(session.clinicId, fileId);
+  const { metadata, bytes } = await clinicStorage.getFile(session.clinicId, fileId);
   const result = await dialog.showSaveDialog(mainWindow, {
     title: 'Save medical file',
     defaultPath: metadata.originalName,
     filters: [{ name: 'Medical file', extensions: [path.extname(metadata.originalName).slice(1)] }]
   });
   if (result.canceled || !result.filePath) return { ok: false, canceled: true };
-  await fs.copyFile(source, result.filePath);
+  await fs.writeFile(result.filePath, bytes, { flag: 'w', mode: 0o600 });
   return { ok: true };
 });
 

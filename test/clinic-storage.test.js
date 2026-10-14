@@ -5,6 +5,7 @@ const path = require('path');
 const {
   ClinicStorage,
   clinicKey,
+  isEncrypted,
   normaliseState,
   safeChild,
   verifyFile
@@ -14,11 +15,23 @@ const testRoot = path.join(__dirname, '.data');
 const admin = { role: 'admin', userId: 'admin-1', userName: 'Clinic Admin' };
 const staff = { role: 'staff', userId: 'staff-1', userName: 'Clinic Staff' };
 
+function testKeyProtector(key = Buffer.alloc(32, 7)) {
+  return {
+    getKey: async () => key,
+    exportWrappedKey: async () => key,
+    unwrapKey: async (wrappedKey) => Buffer.from(wrappedKey)
+  };
+}
+
+function createStorage(name, keyProtector = testKeyProtector()) {
+  return new ClinicStorage(path.join(testRoot, name), keyProtector);
+}
+
 before(async () => fs.rm(testRoot, { recursive: true, force: true }));
 after(async () => fs.rm(testRoot, { recursive: true, force: true }));
 
 test('namespaces persisted workspaces by clinic identity', async () => {
-  const storage = new ClinicStorage(path.join(testRoot, 'namespaces'));
+  const storage = createStorage('namespaces');
   await storage.mutate('clinic-a', staff, 'patient-upsert', {
     patient: { fullName: 'Patient A', fileNumber: 'A-1' }
   });
@@ -38,7 +51,7 @@ test('drops deprecated profile photo data during normalization', () => {
 });
 
 test('allows legacy unscoped data to be claimed by only one clinic namespace', async () => {
-  const storage = new ClinicStorage(path.join(testRoot, 'legacy'));
+  const storage = createStorage('legacy');
   const first = await storage.importLegacy('clinic-a', {
     patients: [{ id: 'patient-legacy', fullName: 'Legacy Patient', fileNumber: 'L-1' }]
   });
@@ -54,7 +67,7 @@ test('allows legacy unscoped data to be claimed by only one clinic namespace', a
 });
 
 test('enforces admin-only payment mutations in the persistence layer', async () => {
-  const storage = new ClinicStorage(path.join(testRoot, 'authorization'));
+  const storage = createStorage('authorization');
   let state = await storage.mutate('clinic-a', staff, 'patient-upsert', {
     patient: { fullName: 'Patient A', fileNumber: 'A-1' }
   });
@@ -96,8 +109,67 @@ test('enforces admin-only payment mutations in the persistence layer', async () 
   assert.equal(paidState.payments.length, 1);
 });
 
+test('prevents direct payments from consuming pending insurance allocation', async () => {
+  const storage = createStorage('mixed-payment-allocation');
+  let state = await storage.mutate('clinic-a', staff, 'patient-upsert', {
+    patient: { fullName: 'Patient A' }
+  });
+  state = await storage.mutate('clinic-a', staff, 'session-create', {
+    session: {
+      patientId: state.patients[0].id,
+      date: '2026-10-14',
+      time: '12:00',
+      service: 'Consultation'
+    }
+  });
+  state = await storage.mutate('clinic-a', staff, 'session-close', {
+    sessionId: state.sessions[0].id,
+    expectedRevision: state.sessions[0].revision,
+    amount: 100
+  });
+  state = await storage.mutate('clinic-a', admin, 'insurance-create', {
+    provider: { name: 'Provider A' }
+  });
+  state = await storage.mutate('clinic-a', admin, 'payment-create', {
+    payment: {
+      sessionId: state.sessions[0].id,
+      date: '2026-10-14',
+      method: 'insurance',
+      status: 'pending',
+      insuranceId: state.insurance[0].id,
+      insuranceAmount: 80,
+      participationFee: 0,
+      settledAmount: 0
+    }
+  });
+
+  await assert.rejects(
+    storage.mutate('clinic-a', admin, 'payment-create', {
+      payment: {
+        sessionId: state.sessions[0].id,
+        date: '2026-10-14',
+        amount: 50,
+        method: 'cash',
+        status: 'paid'
+      }
+    }),
+    /unclaimed session balance/
+  );
+
+  const paidState = await storage.mutate('clinic-a', admin, 'payment-create', {
+    payment: {
+      sessionId: state.sessions[0].id,
+      date: '2026-10-14',
+      amount: 20,
+      method: 'cash',
+      status: 'paid'
+    }
+  });
+  assert.equal(paidState.payments.length, 2);
+});
+
 test('stores validated medical files with generated contained names', async () => {
-  const storage = new ClinicStorage(path.join(testRoot, 'files'));
+  const storage = createStorage('files');
   const state = await storage.mutate('clinic-a', staff, 'patient-upsert', {
     patient: { fullName: 'Patient A', fileNumber: 'A-1' }
   });
@@ -121,7 +193,7 @@ test('stores validated medical files with generated contained names', async () =
 });
 
 test('auto-generates sequential clinic-scoped patient file numbers', async () => {
-  const storage = new ClinicStorage(path.join(testRoot, 'file-numbers'));
+  const storage = createStorage('file-numbers');
   let state = await storage.mutate('north-clinic', staff, 'patient-upsert', {
     patient: { fullName: 'First Patient' }
   });
@@ -140,7 +212,7 @@ test('auto-generates sequential clinic-scoped patient file numbers', async () =>
 });
 
 test('tracks partial insurance settlement without clearing the outstanding balance', async () => {
-  const storage = new ClinicStorage(path.join(testRoot, 'insurance-settlement'));
+  const storage = createStorage('insurance-settlement');
   let state = await storage.mutate('clinic-a', staff, 'patient-upsert', {
     patient: { fullName: 'Patient A' }
   });
@@ -199,7 +271,7 @@ test('tracks partial insurance settlement without clearing the outstanding balan
 });
 
 test('persists generated bill summaries for later listing and printing', async () => {
-  const storage = new ClinicStorage(path.join(testRoot, 'bills'));
+  const storage = createStorage('bills');
   let state = await storage.mutate('clinic-a', staff, 'patient-upsert', {
     patient: { fullName: 'Patient A' }
   });
@@ -232,7 +304,7 @@ test('persists generated bill summaries for later listing and printing', async (
 });
 
 test('preserves immutable patient, session, and payment versions with before and after snapshots', async () => {
-    const storage = new ClinicStorage(path.join(testRoot, 'audit-history'));
+    const storage = createStorage('audit-history');
     let state = await storage.mutate('clinic-a', staff, 'patient-upsert', {
       patient: { fullName: 'Patient A', phone: '0500000000' }
     });
@@ -304,7 +376,7 @@ test('preserves immutable patient, session, and payment versions with before and
 });
 
 test('rejects stale edits and unsafe closed-session financial corrections', async () => {
-    const storage = new ClinicStorage(path.join(testRoot, 'version-conflicts'));
+    const storage = createStorage('version-conflicts');
     let state = await storage.mutate('clinic-a', staff, 'patient-upsert', {
       patient: { fullName: 'Patient A' }
     });
@@ -375,7 +447,7 @@ test('rejects stale edits and unsafe closed-session financial corrections', asyn
 });
 
 test('persists the next-session appointment when a session is closed', async () => {
-  const storage = new ClinicStorage(path.join(testRoot, 'follow-up-calendar'));
+  const storage = createStorage('follow-up-calendar');
   let state = await storage.mutate('clinic-a', staff, 'patient-upsert', {
     patient: { fullName: 'Patient A' }
   });
@@ -398,4 +470,79 @@ test('persists the next-session appointment when a session is closed', async () 
   assert.equal(state.sessions[0].followUpDate, '2026-10-15');
   assert.equal(state.sessions[0].followUpTime, '11:30');
   assert.equal(state.auditLog.at(-1).after.followUpDate, '2026-10-15');
+});
+
+test('migrates plaintext workspaces and medical files to authenticated encryption', async () => {
+  const userDataPath = path.join(testRoot, 'plaintext-migration');
+  const storage = new ClinicStorage(userDataPath, testKeyProtector());
+  const workspace = storage.workspace('clinic-a');
+  const pdf = Buffer.from('%PDF-1.7\nlegacy medical record');
+  const state = normaliseState({
+    patients: [{ id: 'patient-1', fullName: 'Sensitive Patient', fileNumber: 'A-1' }],
+    medicalFiles: [{
+      id: 'file-1',
+      recordType: 'patient',
+      recordId: 'patient-1',
+      originalName: 'record.pdf',
+      storageName: '00000000-0000-4000-8000-000000000001.pdf',
+      mimeType: 'application/pdf',
+      size: pdf.length,
+      uploadedAt: '2026-10-14T10:00:00.000Z',
+      uploadedBy: 'staff-1'
+    }]
+  });
+  await fs.mkdir(workspace.filesDirectory, { recursive: true });
+  await fs.writeFile(workspace.stateFile, JSON.stringify(state));
+  await fs.writeFile(path.join(workspace.filesDirectory, '00000000-0000-4000-8000-000000000001.pdf'), pdf);
+
+  const loaded = await storage.load('clinic-a');
+  const encryptedState = await fs.readFile(workspace.stateFile);
+  const encryptedFile = await fs.readFile(path.join(workspace.filesDirectory, '00000000-0000-4000-8000-000000000001.pdf'));
+  assert.equal(loaded.patients[0].fullName, 'Sensitive Patient');
+  assert.equal(isEncrypted(encryptedState), true);
+  assert.equal(isEncrypted(encryptedFile), true);
+  assert.equal(encryptedState.includes(Buffer.from('Sensitive Patient')), false);
+  assert.equal(encryptedFile.includes(Buffer.from('legacy medical record')), false);
+  assert.deepEqual((await storage.getFile('clinic-a', 'file-1')).bytes, pdf);
+});
+
+test('fails closed when encrypted workspace integrity or the encryption key is wrong', async () => {
+  const userDataPath = path.join(testRoot, 'decryption-failure');
+  const storage = new ClinicStorage(userDataPath, testKeyProtector(Buffer.alloc(32, 3)));
+  await storage.mutate('clinic-a', staff, 'patient-upsert', { patient: { fullName: 'Patient A' } });
+
+  const wrongKeyStorage = new ClinicStorage(userDataPath, testKeyProtector(Buffer.alloc(32, 4)));
+  await assert.rejects(wrongKeyStorage.load('clinic-a'), /could not be decrypted|integrity check/);
+
+  const workspace = storage.workspace('clinic-a');
+  const encrypted = await fs.readFile(workspace.stateFile);
+  encrypted[encrypted.length - 1] ^= 0xff;
+  await fs.writeFile(workspace.stateFile, encrypted);
+  await assert.rejects(storage.load('clinic-a'), /could not be decrypted|integrity check/);
+});
+
+test('exports and restores an authenticated OS-bound backup with medical files', async () => {
+  const source = createStorage('backup-source', testKeyProtector(Buffer.alloc(32, 5)));
+  let state = await source.mutate('clinic-a', staff, 'patient-upsert', {
+    patient: { fullName: 'Backup Patient' }
+  });
+  const pdf = Buffer.from('%PDF-1.7\nprotected backup file');
+  await source.uploadFile('clinic-a', staff, {
+    recordType: 'patient',
+    recordId: state.patients[0].id,
+    originalName: 'backup.pdf',
+    mimeType: 'application/pdf',
+    bytes: pdf
+  });
+
+  const backup = await source.exportProtected('clinic-a');
+  assert.equal(backup.includes(Buffer.from('Backup Patient')), false);
+  assert.equal(backup.includes(Buffer.from('protected backup file')), false);
+
+  const destination = createStorage('backup-destination', testKeyProtector(Buffer.alloc(32, 9)));
+  state = await destination.restoreProtected('clinic-a', backup);
+  assert.equal(state.patients[0].fullName, 'Backup Patient');
+  const restored = await destination.getFile('clinic-a', state.medicalFiles[0].id);
+  assert.deepEqual(restored.bytes, pdf);
+  await assert.rejects(destination.restoreProtected('clinic-b', backup), /does not belong/);
 });

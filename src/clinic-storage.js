@@ -1,6 +1,12 @@
 const fs = require('fs/promises');
 const path = require('path');
-const { createHash, randomUUID } = require('crypto');
+const {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+  randomUUID
+} = require('crypto');
 const {
   amount,
   normalizePayment,
@@ -11,6 +17,12 @@ const {
 
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_BACKUP_BYTES = 250 * 1024 * 1024;
+const ENCRYPTION_MAGIC = Buffer.from('RTSCLINIC1');
+const ENCRYPTION_VERSION = 1;
+const IV_BYTES = 12;
+const TAG_BYTES = 16;
+const BACKUP_FORMAT = 'rts-clinic-protected-backup';
 const ALLOWED_FILES = {
   'application/pdf': { extensions: ['.pdf'], extension: '.pdf' },
   'image/jpeg': { extensions: ['.jpg', '.jpeg'], extension: '.jpg' },
@@ -51,6 +63,56 @@ function safeChild(root, ...segments) {
     throw new Error('Unsafe storage path.');
   }
   return resolved;
+}
+
+function isEncrypted(buffer) {
+  return buffer.length >= ENCRYPTION_MAGIC.length
+    && buffer.subarray(0, ENCRYPTION_MAGIC.length).equals(ENCRYPTION_MAGIC);
+}
+
+function encryptBuffer(buffer, key, context) {
+  if (!Buffer.isBuffer(key) || key.length !== 32) throw new Error('The clinic encryption key is invalid.');
+  const iv = randomBytes(IV_BYTES);
+  const cipher = createCipheriv('aes-256-gcm', key, iv);
+  cipher.setAAD(Buffer.from(context, 'utf8'));
+  const ciphertext = Buffer.concat([cipher.update(buffer), cipher.final()]);
+  return Buffer.concat([ENCRYPTION_MAGIC, Buffer.from([ENCRYPTION_VERSION]), iv, cipher.getAuthTag(), ciphertext]);
+}
+
+function decryptBuffer(buffer, key, context) {
+  if (!isEncrypted(buffer)) return null;
+  if (!Buffer.isBuffer(key) || key.length !== 32) throw new Error('The clinic encryption key is invalid.');
+  const versionOffset = ENCRYPTION_MAGIC.length;
+  if (buffer[versionOffset] !== ENCRYPTION_VERSION) throw new Error('This clinic data uses an unsupported encryption version.');
+  const ivOffset = versionOffset + 1;
+  const tagOffset = ivOffset + IV_BYTES;
+  const contentOffset = tagOffset + TAG_BYTES;
+  if (buffer.length <= contentOffset) throw new Error('The encrypted clinic data is incomplete.');
+  try {
+    const decipher = createDecipheriv('aes-256-gcm', key, buffer.subarray(ivOffset, tagOffset));
+    decipher.setAAD(Buffer.from(context, 'utf8'));
+    decipher.setAuthTag(buffer.subarray(tagOffset, contentOffset));
+    return Buffer.concat([decipher.update(buffer.subarray(contentOffset)), decipher.final()]);
+  } catch {
+    throw new Error('The clinic data could not be decrypted or failed its integrity check.');
+  }
+}
+
+async function atomicWrite(target, contents) {
+  const directory = path.dirname(target);
+  await fs.mkdir(directory, { recursive: true });
+  const temporary = safeChild(directory, `${path.basename(target)}-${randomUUID()}.tmp`);
+  await fs.writeFile(temporary, contents, { mode: 0o600 });
+  try {
+    await fs.rename(temporary, target);
+  } catch (error) {
+    if (!['EEXIST', 'EPERM'].includes(error.code)) {
+      await fs.rm(temporary, { force: true });
+      throw error;
+    }
+    await fs.rm(target, { force: true });
+    await fs.rename(temporary, target);
+  }
 }
 
 function text(value, maxLength = 5000) {
@@ -430,9 +492,10 @@ function allocatePatientFileNumber(state, clinicId) {
 }
 
 class ClinicStorage {
-  constructor(userDataPath) {
+  constructor(userDataPath, keyProtector) {
     this.root = path.join(userDataPath, 'clinic-workspaces');
     this.migrationMarker = path.join(userDataPath, 'legacy-workspace-migration-v1.json');
+    this.keyProtector = keyProtector;
     this.queues = new Map();
   }
 
@@ -445,32 +508,77 @@ class ClinicStorage {
     };
   }
 
+  requireKeyProtector() {
+    if (!this.keyProtector
+      || typeof this.keyProtector.getKey !== 'function'
+      || typeof this.keyProtector.exportWrappedKey !== 'function'
+      || typeof this.keyProtector.unwrapKey !== 'function') {
+      throw new Error('Clinic data protection is not configured.');
+    }
+    return this.keyProtector;
+  }
+
+  stateContext(clinicId) {
+    return `state:${clinicKey(clinicId)}`;
+  }
+
+  fileContext(clinicId, storageName) {
+    return `file:${clinicKey(clinicId)}:${storageName}`;
+  }
+
+  async migratePlaintextFiles(clinicId) {
+    const { filesDirectory } = this.workspace(clinicId);
+    let entries;
+    try {
+      entries = await fs.readdir(filesDirectory, { withFileTypes: true });
+    } catch (error) {
+      if (error.code === 'ENOENT') return;
+      throw error;
+    }
+    const key = await this.requireKeyProtector().getKey();
+    for (const entry of entries) {
+      if (!entry.isFile() || entry.isSymbolicLink()) {
+        throw new Error('The medical file storage contains an invalid entry.');
+      }
+      const target = safeChild(filesDirectory, entry.name);
+      const contents = await fs.readFile(target);
+      if (!isEncrypted(contents)) {
+        await atomicWrite(target, encryptBuffer(contents, key, this.fileContext(clinicId, entry.name)));
+      } else {
+        decryptBuffer(contents, key, this.fileContext(clinicId, entry.name));
+      }
+    }
+  }
+
   async load(clinicId) {
     const { stateFile } = this.workspace(clinicId);
     try {
-      return normaliseState(JSON.parse(await fs.readFile(stateFile, 'utf8')));
+      const stored = await fs.readFile(stateFile);
+      const key = await this.requireKeyProtector().getKey();
+      const decrypted = decryptBuffer(stored, key, this.stateContext(clinicId));
+      let state;
+      try {
+        state = normaliseState(JSON.parse((decrypted || stored).toString('utf8')));
+      } catch (error) {
+        if (error instanceof SyntaxError) throw new Error('The clinic workspace data is corrupted.');
+        throw error;
+      }
+      if (!decrypted) {
+        await this.migratePlaintextFiles(clinicId);
+        await this.save(clinicId, state);
+      }
+      return state;
     } catch (error) {
       if (error.code === 'ENOENT') return emptyState();
-      if (error instanceof SyntaxError) throw new Error('The clinic workspace data is corrupted.');
       throw error;
     }
   }
 
   async save(clinicId, state) {
-    const { directory, stateFile } = this.workspace(clinicId);
-    await fs.mkdir(directory, { recursive: true });
-    const temporary = safeChild(directory, `workspace-${randomUUID()}.tmp`);
-    await fs.writeFile(temporary, JSON.stringify(normaliseState(state), null, 2), { encoding: 'utf8', mode: 0o600 });
-    try {
-      await fs.rename(temporary, stateFile);
-    } catch (error) {
-      if (!['EEXIST', 'EPERM'].includes(error.code)) {
-        await fs.rm(temporary, { force: true });
-        throw error;
-      }
-      await fs.rm(stateFile, { force: true });
-      await fs.rename(temporary, stateFile);
-    }
+    const { stateFile } = this.workspace(clinicId);
+    const key = await this.requireKeyProtector().getKey();
+    const serialized = Buffer.from(JSON.stringify(normaliseState(state)), 'utf8');
+    await atomicWrite(stateFile, encryptBuffer(serialized, key, this.stateContext(clinicId)));
   }
 
   enqueue(clinicId, operation) {
@@ -598,8 +706,8 @@ class ClinicStorage {
           });
         } else {
           const directAmount = amount(input.amount);
-          if (directAmount <= 0 || directAmount > financials.outstanding + 0.005) {
-            throw new Error('Payment cannot exceed the outstanding session balance.');
+          if (directAmount <= 0 || directAmount > financials.unclaimed + 0.005) {
+            throw new Error('Payment cannot exceed the unclaimed session balance.');
           }
           normalized = normalizePayment({ ...input, amount: directAmount, status: 'paid' });
         }
@@ -716,7 +824,11 @@ class ClinicStorage {
       await fs.mkdir(workspace.filesDirectory, { recursive: true });
       const storageName = `${randomUUID()}${rule.extension}`;
       const target = safeChild(workspace.filesDirectory, storageName);
-      await fs.writeFile(target, buffer, { flag: 'wx', mode: 0o600 });
+      const key = await this.requireKeyProtector().getKey();
+      await fs.writeFile(target, encryptBuffer(buffer, key, this.fileContext(clinicId, storageName)), {
+        flag: 'wx',
+        mode: 0o600
+      });
       const metadata = {
         id: newId('file'),
         recordType: input.recordType,
@@ -747,7 +859,11 @@ class ClinicStorage {
     const source = safeChild(workspace.filesDirectory, metadata.storageName);
     const fileInfo = await fs.lstat(source);
     if (!fileInfo.isFile() || fileInfo.isSymbolicLink()) throw new Error('The medical file storage entry is invalid.');
-    return { metadata, source };
+    const stored = await fs.readFile(source);
+    const key = await this.requireKeyProtector().getKey();
+    const bytes = decryptBuffer(stored, key, this.fileContext(clinicId, metadata.storageName));
+    if (!bytes) throw new Error('The medical file is not encrypted.');
+    return { metadata, bytes };
   }
 
   async deleteFile(clinicId, session, fileId) {
@@ -763,14 +879,139 @@ class ClinicStorage {
       return { ok: true };
     });
   }
+
+  async exportProtected(clinicId) {
+    return this.enqueue(clinicId, async () => {
+      const state = await this.load(clinicId);
+      const files = [];
+      const key = await this.requireKeyProtector().getKey();
+      for (const metadata of state.medicalFiles) {
+        const source = safeChild(this.workspace(clinicId).filesDirectory, metadata.storageName);
+        const stored = await fs.readFile(source);
+        const bytes = decryptBuffer(stored, key, this.fileContext(clinicId, metadata.storageName));
+        if (!bytes) throw new Error('The medical file is not encrypted.');
+        files.push({ storageName: metadata.storageName, bytes: bytes.toString('base64') });
+      }
+      const payload = Buffer.from(JSON.stringify({ clinicId, state, files }), 'utf8');
+      const protectedPayload = encryptBuffer(payload, key, `backup:${clinicKey(clinicId)}`);
+      const wrappedKey = await this.requireKeyProtector().exportWrappedKey();
+      return Buffer.from(JSON.stringify({
+        format: BACKUP_FORMAT,
+        version: 1,
+        clinicKey: clinicKey(clinicId),
+        wrappedKey: Buffer.from(wrappedKey).toString('base64'),
+        contents: protectedPayload.toString('base64')
+      }), 'utf8');
+    });
+  }
+
+  async restoreProtected(clinicId, backup) {
+    if (!Buffer.isBuffer(backup) || !backup.length || backup.length > MAX_BACKUP_BYTES) {
+      throw new Error('The protected clinic backup is invalid or too large.');
+    }
+    return this.enqueue(clinicId, async () => {
+      let envelope;
+      try {
+        envelope = JSON.parse(backup.toString('utf8'));
+      } catch {
+        throw new Error('The protected clinic backup is invalid.');
+      }
+      if (envelope?.format !== BACKUP_FORMAT || envelope.version !== 1 || envelope.clinicKey !== clinicKey(clinicId)) {
+        throw new Error('This backup does not belong to the signed-in clinic.');
+      }
+      const backupKey = await this.requireKeyProtector().unwrapKey(Buffer.from(envelope.wrappedKey || '', 'base64'));
+      const protectedPayload = Buffer.from(envelope.contents || '', 'base64');
+      const decrypted = decryptBuffer(protectedPayload, backupKey, `backup:${clinicKey(clinicId)}`);
+      if (!decrypted) throw new Error('The protected clinic backup is not encrypted.');
+      let payload;
+      try {
+        payload = JSON.parse(decrypted.toString('utf8'));
+      } catch {
+        throw new Error('The protected clinic backup contents are invalid.');
+      }
+      if (payload?.clinicId !== clinicId || !payload.state || !Array.isArray(payload.files)) {
+        throw new Error('The protected clinic backup contents are invalid.');
+      }
+
+      const state = normaliseState(payload.state);
+      const metadataByName = new Map(state.medicalFiles.map((metadata) => [metadata.storageName, metadata]));
+      if (metadataByName.size !== state.medicalFiles.length || payload.files.length !== state.medicalFiles.length) {
+        throw new Error('The protected clinic backup file index is inconsistent.');
+      }
+      const files = payload.files.map((file) => {
+        const metadata = metadataByName.get(file?.storageName);
+        if (!metadata || typeof file.bytes !== 'string') {
+          throw new Error('The protected clinic backup file index is inconsistent.');
+        }
+        const bytes = Buffer.from(file.bytes, 'base64');
+        const rule = verifyFile(bytes, metadata.mimeType, metadata.originalName);
+        if (bytes.length !== metadata.size || !rule.extensions.includes(path.extname(metadata.storageName).toLowerCase())) {
+          throw new Error('A protected clinic backup file failed validation.');
+        }
+        return { metadata, bytes };
+      });
+
+      const currentKey = await this.requireKeyProtector().getKey();
+      const workspace = this.workspace(clinicId);
+      const stagingDirectory = `${workspace.directory}.restore-${randomUUID()}`;
+      const previousDirectory = `${workspace.directory}.previous-${randomUUID()}`;
+      const stagingState = path.join(stagingDirectory, 'workspace.json');
+      const stagingFiles = path.join(stagingDirectory, 'medical-files');
+      await fs.mkdir(stagingFiles, { recursive: true });
+      try {
+        for (const { metadata, bytes } of files) {
+          await fs.writeFile(
+            safeChild(stagingFiles, metadata.storageName),
+            encryptBuffer(bytes, currentKey, this.fileContext(clinicId, metadata.storageName)),
+            { flag: 'wx', mode: 0o600 }
+          );
+        }
+        await atomicWrite(
+          stagingState,
+          encryptBuffer(Buffer.from(JSON.stringify(state), 'utf8'), currentKey, this.stateContext(clinicId))
+        );
+        await fs.mkdir(this.root, { recursive: true });
+        let movedCurrent = false;
+        try {
+          await fs.rename(workspace.directory, previousDirectory);
+          movedCurrent = true;
+        } catch (error) {
+          if (error.code !== 'ENOENT') throw error;
+        }
+        try {
+          await fs.rename(stagingDirectory, workspace.directory);
+        } catch (error) {
+          if (movedCurrent) await fs.rename(previousDirectory, workspace.directory);
+          throw error;
+        }
+        if (movedCurrent) {
+          try {
+            await fs.rm(previousDirectory, { recursive: true, force: true });
+          } catch (error) {
+            console.error('Unable to remove the previous clinic workspace after restore:', error.message);
+          }
+        }
+      } catch (error) {
+        await fs.rm(stagingDirectory, { recursive: true, force: true });
+        throw error;
+      }
+      return state;
+    });
+  }
 }
 
 module.exports = {
   ALLOWED_FILES,
+  BACKUP_FORMAT,
+  ENCRYPTION_MAGIC,
+  MAX_BACKUP_BYTES,
   MAX_UPLOAD_BYTES,
   ClinicStorage,
   clinicKey,
+  decryptBuffer,
   emptyState,
+  encryptBuffer,
+  isEncrypted,
   normaliseState,
   safeChild,
   sanitizeLegacyState,
